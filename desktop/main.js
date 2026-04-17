@@ -3,9 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const APP_URL = process.env.APP_REMOTE_URL || 'https://ia-trader-bitcoin-production-0c6b.up.railway.app/dashboard';
+const APP_URL = 'https://ia-trader-bitcoin-production-0c6b.up.railway.app/dashboard';
 const APP_PRIVATE_KEY = process.env.APP_PRIVATE_KEY || 'IA_TRADER_PRIVATE_2026';
-const APP_META_URL = process.env.APP_META_URL || 'https://ia-trader-bitcoin-production-0c6b.up.railway.app/api/app-meta';
+const APP_META_URL = 'https://ia-trader-bitcoin-production-0c6b.up.railway.app/api/app-meta';
 const UPDATE_CHECK_INTERVAL_MS = 60000;
 
 app.commandLine.appendSwitch('disable-http-cache');
@@ -16,6 +16,28 @@ let authWindow = null;
 let dashboardWindow = null;
 let updateInterval = null;
 let currentRemoteVersion = '';
+
+function assertRemoteUrl(url, label) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`${label} invalida.`);
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  if (isLocalHost) {
+    throw new Error(`${label} local bloqueada.`);
+  }
+
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`${label} deve usar HTTPS.`);
+  }
+}
+
+assertRemoteUrl(APP_URL, 'APP_URL');
+assertRemoteUrl(APP_META_URL, 'APP_META_URL');
 
 function getDashboardUrl() {
   const separator = APP_URL.includes('?') ? '&' : '?';
