@@ -221,19 +221,23 @@
     });
 
     loginBtn.addEventListener('click', async () => {
-      if (!password.value) {
-        setStatus('Digite sua senha.', 'error');
-        return;
-      }
+      try {
+        if (!password.value || !password.value.trim()) {
+          setStatus('Acesso negado', 'error denied');
+          return;
+        }
 
-      const result = await window.desktopAuth.verifyPassword(password.value);
-      if (!result.ok) {
+        const result = await window.desktopAuth.verifyPassword(password.value);
+        if (!result || !result.ok) {
+          setStatus('Acesso negado', 'error denied');
+          return;
+        }
+
+        setStatus('Acesso autorizado. Abrindo app...', 'ok');
+        await openDashboard();
+      } catch {
         setStatus('Acesso negado', 'error denied');
-        return;
       }
-
-      setStatus('Acesso autorizado. Abrindo app...', 'ok');
-      await openDashboard();
     });
 
     password.addEventListener('keydown', (e) => {
