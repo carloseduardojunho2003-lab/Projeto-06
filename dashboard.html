@@ -171,6 +171,56 @@
       border: 1px solid #0f0;
       border-radius: 3px;
     }
+
+    .real-btc-panel {
+      margin-top: 12px;
+      padding: 8px;
+      border: 1px solid #0f0;
+      border-radius: 4px;
+      background: #09121f;
+    }
+
+    #btcRealChart {
+      width: 100%;
+      height: 135px;
+      background: #000;
+      border: 1px solid #1e2e4f;
+      border-radius: 3px;
+      margin-bottom: 8px;
+    }
+
+    .pct-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .pct-item {
+      border: 1px dashed #2f4f2f;
+      border-radius: 3px;
+      padding: 6px;
+      font-size: 11px;
+      background: #050b14;
+    }
+
+    .pct-item .lbl {
+      display: block;
+      color: #7a8aa1;
+      margin-bottom: 2px;
+    }
+
+    .pct-item .val {
+      font-weight: bold;
+      color: #0f0;
+    }
+
+    .pct-item .val.neg {
+      color: #f00;
+    }
+
+    .pct-item .val.neu {
+      color: #ff0;
+    }
   </style>
 </head>
 <body>
@@ -314,6 +364,29 @@
       <span class="stat-label">Última Op:</span>
       <span class="stat-value" id="lastTrade">-</span>
     </div>
+
+    <div class="real-btc-panel">
+      <div class="box-title" style="margin-bottom: 6px; border-bottom: 1px solid #294a29;">🪙 BTC REAL (Binance)</div>
+      <canvas id="btcRealChart"></canvas>
+      <div class="pct-grid">
+        <div class="pct-item">
+          <span class="lbl">1 dia</span>
+          <span class="val" id="btcPct1d">--</span>
+        </div>
+        <div class="pct-item">
+          <span class="lbl">7 dias</span>
+          <span class="val" id="btcPct7d">--</span>
+        </div>
+        <div class="pct-item">
+          <span class="lbl">1 mes</span>
+          <span class="val" id="btcPct1m">--</span>
+        </div>
+        <div class="pct-item">
+          <span class="lbl">3 meses</span>
+          <span class="val" id="btcPct3m">--</span>
+        </div>
+      </div>
+    </div>
     
     <div style="height: 20px;"></div>
     <p style="font-size: 10px; color: #666; text-align: center;">
@@ -331,13 +404,114 @@
   let logs = [];
   let chart = null;
   let performanceData = [];
+  let btcDailyCloses = [];
   const MAX_CHART_POINTS = 50;
   
   // ═════════════════════════════════════════════════════════
   function init() {
     setupChart();
+    setupRealBtcChart();
     connectWebSocket();
+    refreshRealBtcData();
+    setInterval(refreshRealBtcData, 300000);
     setInterval(updateUptime, 1000);
+  }
+
+  function setupRealBtcChart() {
+    const canvas = document.getElementById('btcRealChart');
+    if (!canvas) return;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    drawRealBtcChart();
+  }
+
+  function drawRealBtcChart() {
+    const canvas = document.getElementById('btcRealChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = '#1c2e4a';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+      const y = (h / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    if (btcDailyCloses.length < 2) return;
+
+    const maxVal = Math.max(...btcDailyCloses);
+    const minVal = Math.min(...btcDailyCloses);
+    const range = maxVal - minVal || 1;
+    const first = btcDailyCloses[0];
+    const last = btcDailyCloses[btcDailyCloses.length - 1];
+
+    ctx.strokeStyle = last >= first ? '#0f0' : '#f00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < btcDailyCloses.length; i++) {
+      const x = (i / (btcDailyCloses.length - 1)) * (w - 1);
+      const normalized = (btcDailyCloses[i] - minVal) / range;
+      const y = h - normalized * (h - 4) - 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  function formatPct(value) {
+    if (value === null || Number.isNaN(value)) return '--';
+    const sign = value > 0 ? '+' : '';
+    return `${sign}${value.toFixed(2)}%`;
+  }
+
+  function setPctValue(elId, value) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = formatPct(value);
+    el.classList.remove('neg', 'neu');
+    if (value < 0) el.classList.add('neg');
+    if (value === 0 || value === null || Number.isNaN(value)) el.classList.add('neu');
+  }
+
+  function calcReturn(closes, periodsBack) {
+    const endIdx = closes.length - 1;
+    const startIdx = endIdx - periodsBack;
+    if (startIdx < 0) return null;
+    const start = closes[startIdx];
+    const end = closes[endIdx];
+    if (!start) return null;
+    return ((end - start) / start) * 100;
+  }
+
+  async function refreshRealBtcData() {
+    try {
+      const response = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=120', { cache: 'no-store' });
+      if (!response.ok) return;
+      const klines = await response.json();
+      const closes = klines.map(k => parseFloat(k[4])).filter(v => !Number.isNaN(v));
+      if (closes.length < 2) return;
+
+      btcDailyCloses = closes.slice(-90);
+      drawRealBtcChart();
+
+      setPctValue('btcPct1d', calcReturn(closes, 1));
+      setPctValue('btcPct7d', calcReturn(closes, 7));
+      setPctValue('btcPct1m', calcReturn(closes, 30));
+      setPctValue('btcPct3m', calcReturn(closes, 90));
+    } catch (e) {
+      setPctValue('btcPct1d', null);
+      setPctValue('btcPct7d', null);
+      setPctValue('btcPct1m', null);
+      setPctValue('btcPct3m', null);
+    }
   }
   
   function setupChart() {
