@@ -325,7 +325,7 @@
 </div>
 
 <script>
-  const WS_URL = 'ws://localhost:5562';
+  const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
   let ws = null;
   let logs = [];
   let chart = null;
