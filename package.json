@@ -2,13 +2,25 @@
   "name": "ia-trader",
   "version": "1.0.0",
   "description": "🤖 IA Trader Bitcoin - Trading Bot autônomo com Dashboard em tempo real",
-  "main": "server.js",
+  "main": "desktop/main.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "dashboard": "node server.js"
+    "dashboard": "node server.js",
+    "desktop:start": "electron desktop/main.js",
+    "desktop:dist": "electron-builder --win nsis",
+    "desktop:dir": "electron-builder --dir",
+    "desktop:pack": "electron-packager . IA-Trader-Privado --platform=win32 --arch=x64 --out=dist --overwrite --prune=true --electron-version=31.7.7 --ignore=\\\"^/(dist|.git)\\\""
   },
-  "keywords": ["trading", "bot", "ia", "bitcoin", "binance"],
+  "keywords": [
+    "trading",
+    "bot",
+    "ia",
+    "bitcoin",
+    "binance",
+    "desktop",
+    "electron"
+  ],
   "author": "Seu Nome",
   "license": "MIT",
   "dependencies": {
@@ -19,6 +31,29 @@
     "ws": "^8.13.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2"
+  },
+  "build": {
+    "appId": "com.iatrader.desktop",
+    "productName": "IA Trader Privado",
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "IA-Trader-Privado-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }

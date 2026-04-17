@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IA Trader Privado</title>
+  <style>
+    :root {
+      --bg: #0a0d1f;
+      --panel: #11162f;
+      --border: #2f3a71;
+      --text: #ecf2ff;
+      --muted: #9fb0e7;
+      --accent: #3ddc97;
+      --danger: #ff6f91;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Segoe UI, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top right, #1a1f4a, var(--bg) 45%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: linear-gradient(180deg, #161d42, var(--panel));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 14px 32px rgba(6, 9, 23, 0.55);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      letter-spacing: 0.2px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .group { margin-top: 18px; }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0d1230;
+      color: var(--text);
+      outline: none;
+      font-size: 14px;
+    }
+
+    input:focus { border-color: #4f67d8; }
+
+    .actions {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #08111f;
+    }
+
+    .secondary {
+      background: #29356e;
+      color: var(--text);
+    }
+
+    .status {
+      margin-top: 14px;
+      min-height: 20px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .status.error { color: var(--danger); }
+    .status.ok { color: var(--accent); }
+
+    .small {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #8ea0dc;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>IA Trader Privado</h1>
+    <p id="subtitle">Carregando configuracao segura...</p>
+
+    <section id="setupSection" class="hidden">
+      <div class="group">
+        <label for="newPassword">Criar senha privada</label>
+        <input id="newPassword" type="password" placeholder="Minimo 6 caracteres" />
+      </div>
+
+      <div class="group">
+        <label for="confirmPassword">Confirmar senha</label>
+        <input id="confirmPassword" type="password" placeholder="Repita a senha" />
+      </div>
+
+      <div class="actions">
+        <button id="createPasswordBtn" class="primary">Salvar senha e abrir app</button>
+      </div>
+    </section>
+
+    <section id="loginSection" class="hidden">
+      <div class="group">
+        <label for="password">Senha de acesso</label>
+        <input id="password" type="password" placeholder="Digite sua senha" />
+      </div>
+
+      <div class="actions">
+        <button id="loginBtn" class="primary">Entrar no app</button>
+      </div>
+    </section>
+
+    <p id="status" class="status"></p>
+    <p id="appUrl" class="small"></p>
+  </main>
+
+  <script>
+    const subtitle = document.getElementById('subtitle');
+    const setupSection = document.getElementById('setupSection');
+    const loginSection = document.getElementById('loginSection');
+    const statusEl = document.getElementById('status');
+    const appUrl = document.getElementById('appUrl');
+
+    const newPassword = document.getElementById('newPassword');
+    const confirmPassword = document.getElementById('confirmPassword');
+    const createPasswordBtn = document.getElementById('createPasswordBtn');
+
+    const password = document.getElementById('password');
+    const loginBtn = document.getElementById('loginBtn');
+
+    function setStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = 'status' + (type ? ' ' + type : '');
+    }
+
+    async function openDashboard() {
+      await window.desktopAuth.openDashboard();
+    }
+
+    async function init() {
+      const state = await window.desktopAuth.getState();
+      appUrl.textContent = 'Painel protegido: ' + state.appUrl;
+
+      if (state.hasPassword) {
+        subtitle.textContent = 'Digite sua senha para acessar o painel privado.';
+        loginSection.classList.remove('hidden');
+        password.focus();
+      } else {
+        subtitle.textContent = 'Primeiro acesso: crie uma senha privada deste app.';
+        setupSection.classList.remove('hidden');
+        newPassword.focus();
+      }
+    }
+
+    createPasswordBtn.addEventListener('click', async () => {
+      if (newPassword.value.length < 6) {
+        setStatus('Use no minimo 6 caracteres.', 'error');
+        return;
+      }
+
+      if (newPassword.value !== confirmPassword.value) {
+        setStatus('As senhas nao conferem.', 'error');
+        return;
+      }
+
+      const result = await window.desktopAuth.setPassword(newPassword.value);
+      if (!result.ok) {
+        setStatus(result.error || 'Nao foi possivel salvar senha.', 'error');
+        return;
+      }
+
+      setStatus('Senha salva com sucesso. Abrindo app...', 'ok');
+      await openDashboard();
+    });
+
+    loginBtn.addEventListener('click', async () => {
+      if (!password.value) {
+        setStatus('Digite sua senha.', 'error');
+        return;
+      }
+
+      const result = await window.desktopAuth.verifyPassword(password.value);
+      if (!result.ok) {
+        setStatus('Senha incorreta.', 'error');
+        return;
+      }
+
+      setStatus('Acesso autorizado. Abrindo app...', 'ok');
+      await openDashboard();
+    });
+
+    password.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        loginBtn.click();
+      }
+    });
+
+    confirmPassword.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        createPasswordBtn.click();
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>
