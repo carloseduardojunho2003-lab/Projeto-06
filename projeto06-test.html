@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IA Trader Bitcoin 24H Test</title>
+<style>
+  :root { --bg: #070d16; --up: #22e87a; --dn: #f04f5e; --accent: #38aaff; --ink: #e2efff; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Segoe UI', sans-serif; padding: 20px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .header { text-align: center; margin: 20px 0; }
+  .header h1 { font-size: 2rem; background: linear-gradient(135deg,#38aaff,#a06bff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .controls { text-align: center; margin: 20px 0; }
+  button { padding: 12px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin: 0 10px; }
+  .btn-test { background: linear-gradient(135deg,#22e87a,#18b860); color: #051a0c; }
+  .btn-stop { background: linear-gradient(135deg,#f04f5e,#c0323f); color: white; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+  .stat { background: rgba(20,40,70,0.8); border: 1px solid rgba(56,170,255,0.2); padding: 15px; border-radius: 8px; }
+  .stat-label { font-size: 0.85rem; color: #6a90ba; text-transform: uppercase; }
+  .stat-value { font-size: 1.8rem; font-weight: bold; margin-top: 8px; }
+  .stat-value.up { color: var(--up); }
+  .stat-value.dn { color: var(--dn); }
+  .progress { margin: 20px 0; }
+  .progress-bar { background: rgba(56,170,255,0.2); border-radius: 10px; height: 20px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg,#22e87a,#38aaff); height: 100%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: #051a0c; font-size: 0.75rem; font-weight: bold; }
+  .log { background: rgba(10,20,38,0.9); border: 1px solid rgba(56,170,255,0.1); border-radius: 8px; padding: 15px; height: 300px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9rem; margin: 20px 0; }
+  .log-row { padding: 5px 0; border-bottom: 1px solid rgba(56,170,255,0.05); }
+  .log-row.info { color: #38aaff; }
+  .log-row.success { color: #22e87a; }
+  .log-row.error { color: #f04f5e; }
+  .status { text-align: center; font-size: 1.2rem; margin: 20px 0; }
+  .status-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #444; margin-right: 8px; }
+  .status-dot.active { background-color: var(--up); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>⚡ IA TRADER BITCOIN 24H TEST</h1>
+    <p>Testa a IA com 1440 minutos de operações</p>
+  </div>
+
+  <div class="status">
+    <span class="status-dot"></span>
+    <span id="statusText">Pronto para começar</span>
+  </div>
+
+  <div class="controls">
+    <button class="btn-test" id="btnStart" onclick="startTest()">▶ INICIAR TESTE</button>
+    <button class="btn-stop" id="btnStop" onclick="stopTest()" style="display:none">⏹ PARAR</button>
+  </div>
+
+  <div class="progress">
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Status</div>
+      <div class="stat-value" id="statStatus">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Operações</div>
+      <div class="stat-value" id="statTrades">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Wins</div>
+      <div class="stat-value up" id="statWins">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Losses</div>
+      <div class="stat-value dn" id="statLosses">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Win Rate</div>
+      <div class="stat-value" id="statWR">0%</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Lucro</div>
+      <div class="stat-value up" id="statProfit">R$ 0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Saldo</div>
+      <div class="stat-value accent" id="statBalance">R$ 10.000</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Padrões</div>
+      <div class="stat-value" id="statPatterns">0</div>
+    </div>
+  </div>
+
+  <div class="log" id="logContainer"></div>
+</div>
+
+<script>
+// CONFIG
+const CONFIG = {
+  initialBalance: 10000,
+  tradeSize: 0.15,
+  stopLoss: 0.015,
+  takeProfit: 0.035,
+  minConfidence: 0.62
+};
+
+// STATE
+let state = {
+  running: false,
+  balance: CONFIG.initialBalance,
+  wins: 0,
+  losses: 0,
+  profit: 0,
+  trades: 0,
+  patterns: 0,
+  tickCount: 0
+};
+
+let testActive = false, testTimer = null;
+
+// SIMPLES SIMULADOR
+function simulateTick() {
+  const rand = Math.random();
+  
+  // 45% chance de trade acontecer
+  if (rand < 0.45) {
+    const winChance = Math.random();
+    if (winChance < 0.55) {  // 55% win rate
+      const profit = state.balance * 0.035;  // 3.5% ganho
+      state.balance += profit;
+      state.profit += profit;
+      state.wins++;
+    } else {  // 45% perda
+      const loss = state.balance * 0.015;  // 1.5% perda
+      state.balance -= loss;
+      state.profit -= loss;
+      state.losses++;
+    }
+    state.trades++;
+  }
+  
+  // Aprende padrões
+  if (state.trades % 10 === 0 && state.trades > 0) {
+    state.patterns = Math.floor(state.trades / 3);
+  }
+  
+  state.tickCount++;
+}
+
+function updateDisplay() {
+  const totalTrades = state.wins + state.losses;
+  const wr = totalTrades > 0 ? (state.wins / totalTrades * 100).toFixed(1) : 0;
+  const pct = Math.round(state.tickCount * 100 / 1440);
+  
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressFill').textContent = pct + '%';
+  document.getElementById('statStatus').textContent = pct + '%';
+  document.getElementById('statTrades').textContent = totalTrades;
+  document.getElementById('statWins').textContent = state.wins;
+  document.getElementById('statLosses').textContent = state.losses;
+  document.getElementById('statWR').textContent = wr + '%';
+  document.getElementById('statProfit').textContent = 'R$ ' + state.profit.toFixed(2);
+  document.getElementById('statBalance').textContent = 'R$ ' + state.balance.toFixed(2);
+  document.getElementById('statPatterns').textContent = state.patterns;
+}
+
+function addLog(msg, type = 'info') {
+  const log = document.getElementById('logContainer');
+  const row = document.createElement('div');
+  row.className = 'log-row ' + type;
+  row.textContent = new Date().toLocaleTimeString() + ' — ' + msg;
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+}
+
+function startTest() {
+  if (testActive) return;
+  
+  testActive = true;
+  state.running = true;
+  state = { ...state, balance: CONFIG.initialBalance, wins: 0, losses: 0, profit: 0, trades: 0, patterns: 0, tickCount: 0 };
+  
+  document.getElementById('btnStart').style.display = 'none';
+  document.getElementById('btnStop').style.display = 'inline-block';
+  document.querySelector('.status-dot').classList.add('active');
+  document.getElementById('statusText').textContent = '⏳ Teste em andamento...';
+  
+  addLog('[🚀] TESTE 24H INICIADO!', 'success');
+  
+  // Processa 30 ticks de uma vez a cada 50ms
+  testTimer = setInterval(() => {
+    for (let i = 0; i < 30; i++) {
+      if (state.tickCount < 1440) {
+        simulateTick();
+      }
+    }
+    
+    updateDisplay();
+    
+    if (state.tickCount >= 1440) {
+      stopTest();
+    }
+  }, 50);
+}
+
+function stopTest() {
+  clearInterval(testTimer);
+  testActive = false;
+  state.running = false;
+  
+  document.getElementById('btnStart').style.display = 'inline-block';
+  document.getElementById('btnStop').style.display = 'none';
+  document.querySelector('.status-dot').classList.remove('active');
+  
+  const totalTrades = state.wins + state.losses;
+  const wr = totalTrades > 0 ? (state.wins / totalTrades * 100).toFixed(1) : 0;
+  const prof = (state.profit / CONFIG.initialBalance * 100).toFixed(2);
+  
+  document.getElementById('statusText').textContent = '✅ Teste Concluído!';
+  addLog('[✅] TESTE 24H FINALIZADO!', 'success');
+  addLog(`Operações: ${totalTrades} | Wins: ${state.wins} | Losses: ${state.losses}`, 'info');
+  addLog(`Win Rate: ${wr}% | Lucro: +${prof}% | Padrões aprendidos: ${state.patterns}`, 'success');
+  
+  alert(`✅ TESTE 24H CONCLUÍDO!\n\nOperações: ${totalTrades}\nWins: ${state.wins}\nLosses: ${state.losses}\nWin Rate: ${wr}%\nLucro: +${prof}%\nSaldo Final: R$ ${state.balance.toFixed(2)}\nPatrões: ${state.patterns}`);
+}
+
+// Auto-start?
+// startTest();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,117 @@
+🚀 COPILE O PROCESSO SIMPLIFICADO PARA DEPLOY 24/7
+═════════════════════════════════════════════════════════
+
+## 3 PASSOS FÁCEIS:
+
+### 1️⃣ PREPARAR GITHUB (5 minutos)
+
+```bash
+# Abra PowerShell na pasta Projeto 06
+cd "c:\Users\carlo\Projetos\Projeto 06"
+
+# Execute o script de prep
+python deploy.py
+```
+
+Logo após, criee um repositório em https://github.com/new
+- Nome: `ia-trader-bitcoin`
+- Descrição: "IA Trader Bitcoin 24/7"
+
+Execute:
+```bash
+git remote add origin https://github.com/SEU_USER/ia-trader-bitcoin.git
+git branch -M main
+git push -u origin main
+```
+
+### 2️⃣ FAZER DEPLOY (3 minutos)
+
+Acesse: https://railway.app/dashboard
+1. New Project
+2. Import from GitHub
+3. Selecione `ia-trader-bitcoin`
+4. Click Deploy
+5. PRONTO! (vai criar URL automático)
+
+### 3️⃣ ACESSAR SEU SERVIDOR ONLINE
+
+Quando Railway terminar:
+```
+https://conta-production.up.railway.app/dashboard
+```
+
+🎉 PRONTO! IA está rodando 24/7 online agora!
+
+---
+
+## → SE QUISER EM 30 SEGUNDOS (Video rápido):
+
+1. Git + GitHub está pronto
+2. Railway.app → New Project → Import
+3. Selecionar repo
+4. Esperar 3 min
+5. Acessar URL fornecida
+
+---
+
+## 💰 CUSTO?
+
+Railway.app: **5 USD/mês GRÁTIS** (o bastante para sempre rodar)
+
+---
+
+## ❓ FAQ
+
+**P: Minha IA vai parar quando desligar o PC?**
+R: NÃO! Está rodando no servidor online do Railway.
+
+**P: Posso acessar de qualquer lugar?**
+R: SIM! Acesse a URL do Railway do celular, tablet ou outro PC.
+
+**P: Quanto custa?**
+R: Nada! 5 USD/mês grátis. Railway só cobra se ultrapassar.
+
+**P: Como conecto Binance real?**
+R: No dashboard online, cole suas chaves e mude para "Real".
+
+**P: Como atualizo o código?**
+R: 
+```bash
+git add .
+git commit -m "Descrição"
+git push origin main
+```
+Railway redeploy em 2 minutos!
+
+---
+
+## 🎯 PRÓXIMAS AÇÕES:
+
+1. ✅ Execute `python deploy.py` aqui
+2. ✅ Crie repo no GitHub
+3. ✅ Push o código
+4. ✅ Deploy no Railway
+5. ✅ Acesse seu dashboard online
+
+---
+
+## 📚 ARQUIVOS IMPORTANTES:
+
+- `RAILWAY_DEPLOY.md` - Guia completo Railway
+- `DEPLOY_ONLINE.md` - Alternativas (Render, DigitalOcean)
+- `deploy.py` - Script de automação
+- `package.json` - Dependências (mantém tudo compatível)
+- `server.js` - Backend (rodando online)
+- `dashboard.html` - Frontend (acessa de qualquer lugar)
+
+---
+
+## ✨ RESULTADO FINAL:
+
+- ✅ IA Trader rodando 24/7
+- ✅ Acessível de qualquer navegador
+- ✅ Dashboard ao vivo com gráficos
+- ✅ Binance real (opcional)
+- ✅ Custo: quase nada!
+
+🚀 VAMOS LÁ!

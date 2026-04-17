@@ -1,0 +1,181 @@
+╔════════════════════════════════════════════════════════════════╗
+║           🚀 DEPLOY ONLINE - GUIA SUPER RÁPIDO               ║
+╚════════════════════════════════════════════════════════════════╝
+
+SEU OBJETIVO: IA rodar 24/7 mesmo desligando o PC
+
+SOLUÇÃO: Railway.app (Servidor Online)
+
+🎯 RESUMO (5 MINUTOS TOTAL):
+
+┌─────────────────────────────────────────────────────────────┐
+│ PASSO 1: Preparar Código Local                             │
+└─────────────────────────────────────────────────────────────┘
+
+Abra PowerShell em: c:\Users\carlo\Projetos\Projeto 06
+
+Execute:
+  git init
+  git add .
+  git commit -m "IA Trader - Deploy"
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ PASSO 2: Criar Repositório Github                          │
+└─────────────────────────────────────────────────────────────┘
+
+1. Acesse: https://github.com/new
+2. Nome: ia-trader-bitcoin
+3. Create repository
+
+Copie o comando que aparece:
+  git remote add origin https://github.com/SEU_USER/ia-trader...
+  git push -u origin main
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ PASSO 3: Deploy no Railway.app (GRÁTIS + 24/7)            │
+└─────────────────────────────────────────────────────────────┘
+
+1. Acesse: https://railway.app
+2. Clique "Get Started"
+3. Sign up com GitHub (autorize acesso)
+4. Dashboard → New Project
+5. Import from GitHub
+6. Selecionar: ia-trader-bitcoin
+7. Clique Deploy
+
+⏳ Aguarde 2-3 minutos...
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ PASSO 4: Seu Servidor Online Está Pronto!                │
+└─────────────────────────────────────────────────────────────┘
+
+Railway fornecerá uma URL tipo:
+  https://ia-trader-bitcoin-production.up.railway.app
+
+Acesse:
+  https://seu-dominio.up.railway.app/dashboard
+
+🎉 PRONTO! IA está rodando 24/7 online!
+
+Acesse de:
+  ✅ Seu PC
+  ✅ Seu Celular
+  ✅ Outro Computador
+  ✅ De qualquer lugar do mundo!
+
+Mesmo que desligar o PC → IA continua operando!
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ PASSO 5: Conectar Binance Real (OPCIONAL)                 │
+└─────────────────────────────────────────────────────────────┘
+
+No Dashboard Online:
+
+1. Preencha:
+   - API Key da Binance
+   - API Secret da Binance
+
+2. Clique "💰 REAL"
+
+3. Clique "▶ START"
+
+4. IA começa a tradear com dinheiro real!
+
+⚠️  SEGURANÇA: Nunca compartilhe suas chaves!
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ MONITORAMENTO & LOGS                                        │
+└─────────────────────────────────────────────────────────────┘
+
+Health Check:
+  https://seu-dominio.up.railway.app/api/health
+
+Status em JSON:
+  https://seu-dominio.up.railway.app/api/status
+
+Logs:
+  Railway Dashboard → Logs
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ ATUALIZAÇÕES                                                │
+└─────────────────────────────────────────────────────────────┘
+
+Para fazer mudanças:
+
+  git add .
+  git commit -m "Descrição da mudança"
+  git push origin main
+
+Railway redeploy em 1-2 minutos automaticamente!
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ CUSTO                                                       │
+└─────────────────────────────────────────────────────────────┘
+
+Railway.app: 5 USD/mês GRÁTIS
+
+Basta não passar de 5 USD de uso. Seu servidor custa:
+  - 0.10 USD/hora se algo crash
+  - Essencialmente: GRÁTIS para sempre rodar
+
+Alternativas (se quiser investir):
+  - Railway com Always On: +$7/mês
+  - DigitalOcean Droplet: $4/mês
+  - AWS Lightsail: $3.50/mês
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ SOU INICIANTE, TEM VÍDEO?                                  │
+└─────────────────────────────────────────────────────────────┘
+
+Procure no YouTube:
+  "Deploy Node.js no Railway.app"
+  "GitHub to Railway deploy"
+
+É muito fácil! Qualquer pessoa consegue em 5 min.
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ PERGUNTAS FREQUENTES                                        │
+└─────────────────────────────────────────────────────────────┘
+
+P: IA continua rodando 24/7?
+R: SIM! Nunca para, mesmo desligando o PC.
+
+P: Preciso deixar janela aberta?
+R: NÃO! Está rodando no servidor, não no seu PC.
+
+P: Quanto tempo leva para fazer deploy?
+R: ~5 minutos (tudo pronto para usar).
+
+P: Posso mudar o código depois?
+R: SIM! Faz push para GitHub, Railway redeploy auto.
+
+P: E se quiser parar a IA?
+R: Dashboard Online → Clique "⏹ STOP"
+
+P: Funciona em Celular?
+R: SIM! Acessa a URL no navegador do celular.
+
+
+📚 ARQUIVOS IMPORTANTES:
+
+  RAILWAY_DEPLOY.md - Guia Completo
+  DEPLOY_ONLINE.md - Alternativas
+  DEPLOY_RAPIDO.txt - Este arquivo
+  deploy.py - Script automático
+
+
+╔════════════════════════════════════════════════════════════════╗
+║ PRÓXIMO PASSO: Abra PowerShell e faça git init!             ║
+║ Depois siga os 5 passos acima.                              ║
+║                                                              ║
+║ Em 5 minutos, você tem um servidor 24/7 online! 🚀          ║
+╚════════════════════════════════════════════════════════════════╝

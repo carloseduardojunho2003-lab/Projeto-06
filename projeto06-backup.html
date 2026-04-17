@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IA Trader — Autônoma 24H</title>
+<style>
+  :root {
+    --bg: #070d16; --panel: rgba(10,20,38,0.92); --line: rgba(80,160,255,0.16);
+    --ink: #e2efff; --muted: #6a90ba; --up: #22e87a; --dn: #f04f5e;
+    --accent: #38aaff; --accent2: #a06bff; --warn: #ffc84a;
+    --panel2: rgba(16,30,54,0.88);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',sans-serif;color:var(--ink)}
+  body{background:var(--bg);min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background:
+    radial-gradient(circle at 15% 20%,rgba(56,170,255,.07),transparent 40%),
+    radial-gradient(circle at 85% 80%,rgba(160,107,255,.06),transparent 38%);pointer-events:none}
+
+  header{display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:1px solid var(--line);background:rgba(6,12,24,.96);backdrop-filter:blur(10px);position:sticky;top:0;z-index:50}
+  .logo{font-size:1.18rem;font-weight:700;letter-spacing:.06em;background:linear-gradient(135deg,#38aaff,#a06bff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .status-dot{width:9px;height:9px;border-radius:50%;background:var(--up);box-shadow:0 0 8px var(--up);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .status-dot.off{background:#444;box-shadow:none;animation:none}
+  .header-right{margin-left:auto;display:flex;gap:10px;align-items:center}
+
+  .btn{padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;font-weight:600;letter-spacing:.04em;transition:all .18s}
+  .btn-start{background:linear-gradient(135deg,#22e87a,#18b860);color:#051a0c}
+  .btn-stop{background:linear-gradient(135deg,#f04f5e,#c0323f);color:#fff}
+  .btn-reset{background:rgba(80,120,200,.18);border:1px solid var(--line);color:var(--muted)}
+  .btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
+
+  .grid{display:grid;grid-template-columns:1fr 340px;gap:14px;padding:14px;max-width:1400px;margin:0 auto}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(8px);overflow:hidden}
+  .card-hd{padding:12px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .card-hd .tag{margin-left:auto;font-size:.7rem;padding:3px 8px;border-radius:6px;background:rgba(56,170,255,.12);color:var(--accent)}
+
+  /* Stats row */
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:14px;margin-bottom:14px}
+  @media(max-width:700px){.stats{grid-template-columns:repeat(3,1fr)}}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .stat-lbl{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+  .stat-val{font-size:1.05rem;font-weight:700}
+  .stat-val.up{color:var(--up)} .stat-val.dn{color:var(--dn)} .stat-val.accent{color:var(--accent)}
+
+  /* Chart */
+  #chartWrap{position:relative;padding:0}
+  canvas#chart{display:block;width:100%;height:340px}
+
+  /* Indicators strip */
+  .ind-strip{display:flex;gap:18px;padding:10px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .ind{display:flex;flex-direction:column;gap:2px}
+  .ind-name{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .ind-val{font-size:.82rem;font-weight:600}
+
+  /* Right column */
+  .right{display:flex;flex-direction:column;gap:14px}
+
+  /* AI Brain */
+  .brain{padding:14px 18px;display:flex;flex-direction:column;gap:10px}
+  .signal-bar{display:flex;align-items:center;gap:8px;font-size:.78rem}
+  .signal-bar .lbl{width:60px;color:var(--muted);font-size:.7rem;text-transform:uppercase}
+  .bar-track{flex:1;height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:4px;transition:width .6s}
+  .bar-fill.bull{background:linear-gradient(90deg,#22e87a,#18b860)}
+  .bar-fill.bear{background:linear-gradient(90deg,#f04f5e,#c0323f)}
+  .bar-fill.neutral{background:linear-gradient(90deg,#ffc84a,#e09e20)}
+  .sig-score{width:36px;text-align:right;font-size:.75rem;font-weight:700}
+
+  .ai-decision{padding:12px 14px;border-radius:10px;display:flex;align-items:center;gap:12px;font-weight:700;font-size:.9rem;margin-top:4px}
+  .ai-decision.buy{background:rgba(34,232,122,.12);border:1px solid rgba(34,232,122,.3);color:var(--up)}
+  .ai-decision.sell{background:rgba(240,79,94,.12);border:1px solid rgba(240,79,94,.3);color:var(--dn)}
+  .ai-decision.hold{background:rgba(255,200,74,.08);border:1px solid rgba(255,200,74,.22);color:var(--warn)}
+  .dec-icon{font-size:1.3rem}
+  .dec-conf{margin-left:auto;font-size:.72rem;color:var(--muted);font-weight:400}
+
+  /* Memory */
+  .memory-wrap{padding:10px 18px;display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+  .mem-row{display:flex;gap:8px;align-items:center;font-size:.72rem;padding:5px 8px;border-radius:7px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05)}
+  .mem-tag{padding:2px 7px;border-radius:5px;font-size:.65rem;font-weight:700;text-transform:uppercase}
+  .mem-tag.buy{background:rgba(34,232,122,.2);color:var(--up)}
+  .mem-tag.sell{background:rgba(240,79,94,.2);color:var(--dn)}
+  .mem-pnl{margin-left:auto;font-weight:700}
+  .mem-pnl.pos{color:var(--up)} .mem-pnl.neg{color:var(--dn)}
+
+  /* Trade log */
+  .trade-log{padding:8px 16px;max-height:190px;overflow-y:auto;display:flex;flex-direction:column;gap:5px}
+  .log-row{font-size:.7rem;display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+  .log-time{color:var(--muted);width:48px;flex-shrink:0}
+  .log-action{font-weight:700;width:34px}
+  .log-action.buy{color:var(--up)} .log-action.sell{color:var(--dn)}
+  .log-price{width:72px}
+  .log-pnl{margin-left:auto;font-weight:600}
+
+  /* Confidence meter */
+  .conf-ring{display:flex;justify-content:center;padding:14px}
+  canvas#confRing{width:120px;height:120px}
+
+  /* Progress learning */
+  .learn-bar{padding:10px 18px}
+  .learn-track{height:10px;background:rgba(255,255,255,.07);border-radius:5px;overflow:hidden;margin-top:6px}
+  .learn-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#a06bff,#38aaff);transition:width 1s}
+
+  ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(80,140,255,.3);border-radius:2px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡ IA TRADER BITCOIN 🤖</div>
+  <div class="status-dot off" id="statusDot"></div>
+  <span id="statusTxt" style="font-size:.78rem;color:var(--muted)">Parado</span>
+  <span style="margin-left:20px;font-size:.95rem;letter-spacing:.06em">💡 DADOS REAIS | 🧠 APRENDIZADO AVANÇADO</span>
+  <div class="header-right">
+    <button class="btn btn-reset" id="btnReset">Resetar Memória</button>
+    <button class="btn btn-start" id="btnStart">▶ Iniciar IA</button>
+    <button class="btn btn-stop" id="btnStop" style="display:none">■ Parar</button>
+  </div>
+</header>
+
+<div style="padding:14px;max-width:1400px;margin:0 auto">
+  <div class="stats">
+    <div class="stat"><div class="stat-lbl">💰 Saldo</div><div class="stat-val accent" id="sBalance">R$ 10.000</div></div>
+    <div class="stat"><div class="stat-lbl">📈 Lucro Total</div><div class="stat-val up" id="sProfit">R$ 0</div></div>
+    <div class="stat"><div class="stat-lbl">🎯 Win Rate</div><div class="stat-val" id="sWinRate">—</div></div>
+    <div class="stat"><div class="stat-lbl">🔁 Operações</div><div class="stat-val" id="sTrades">0</div></div>
+    <div class="stat"><div class="stat-lbl">🧠 Aprendizado</div><div class="stat-val accent" id="sLearn">0%</div></div>
+  </div>
+</div>
+
+<div class="grid">
+  <!-- Left: Chart + indicators -->
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div class="card">
+      <div class="card-hd">
+        📊 Gráfico de Preço
+        <span id="currentPriceTag" style="font-size:.9rem;font-weight:700;color:var(--accent);margin-left:8px">—</span>
+        <div class="tag" id="assetTag">BTC/BRL</div>
+      </div>
+      <div id="chartWrap">
+        <canvas id="chart"></canvas>
+      </div>
+      <div class="ind-strip">
+        <div class="ind"><div class="ind-name">RSI</div><div class="ind-val" id="iRsi">—</div></div>
+        <div class="ind"><div class="ind-name">MACD</div><div class="ind-val" id="iMacd">—</div></div>
+        <div class="ind"><div class="ind-name">EMA 9</div><div class="ind-val" id="iEma9">—</div></div>
+        <div class="ind"><div class="ind-name">EMA 21</div><div class="ind-val" id="iEma21">—</div></div>
+        <div class="ind"><div class="ind-name">BB Upper</div><div class="ind-val" id="iBbu">—</div></div>
+        <div class="ind"><div class="ind-name">BB Lower</div><div class="ind-val" id="iBbl">—</div></div>
+        <div class="ind"><div class="ind-name">Volume</div><div class="ind-val" id="iVol">—</div></div>
+        <div class="ind"><div class="ind-name">Tendência</div><div class="ind-val" id="iTrend">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">📋 Log de Operações</div>
+      <div class="trade-log" id="tradeLog">
+        <div style="color:var(--muted);font-size:.74rem;padding:8px 0">Aguardando a IA iniciar...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div class="right">
+    <div class="card">
+      <div class="card-hd">🧠 Cérebro da IA</div>
+      <div class="brain" id="brainPanel">
+        <div class="signal-bar"><span class="lbl">RSI</span><div class="bar-track"><div class="bar-fill neutral" id="bRsi" style="width:50%"></div></div><span class="sig-score" id="bRsiS">0</span></div>
+        <div class="signal-bar"><span class="lbl">MACD</span><div class="bar-track"><div class="bar-fill neutral" id="bMacd" style="width:50%"></div></div><span class="sig-score" id="bMacdS">0</span></div>
+        <div class="signal-bar"><span class="lbl">EMA</span><div class="bar-track"><div class="bar-fill neutral" id="bEma" style="width:50%"></div></div><span class="sig-score" id="bEmaS">0</span></div>
+        <div class="signal-bar"><span class="lbl">Bollinger</span><div class="bar-track"><div class="bar-fill neutral" id="bBoll" style="width:50%"></div></div><span class="sig-score" id="bBollS">0</span></div>
+        <div class="signal-bar"><span class="lbl">Volume</span><div class="bar-track"><div class="bar-fill neutral" id="bVol" style="width:50%"></div></div><span class="sig-score" id="bVolS">0</span></div>
+        <div class="signal-bar"><span class="lbl">Memória</span><div class="bar-track"><div class="bar-fill neutral" id="bMem" style="width:50%"></div></div><span class="sig-score" id="bMemS">0</span></div>
+        <div class="ai-decision hold" id="aiDecision">
+          <span class="dec-icon">⏸</span>
+          <div><div style="font-size:.7rem;color:var(--muted);font-weight:400">Decisão atual</div>AGUARDANDO</div>
+          <span class="dec-conf" id="decConf">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">🎯 Confiança
+        <div class="tag" id="confTag">0%</div>
+      </div>
+      <div class="conf-ring"><canvas id="confRing" width="120" height="120"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">📚 Aprendizado da IA
+        <div class="tag" id="learnTag">0 padrões</div>
+      </div>
+      <div class="learn-bar">
+        <div style="font-size:.72rem;color:var(--muted)">Precisão acumulada do modelo</div>
+        <div class="learn-track"><div class="learn-fill" id="learnFill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">🗃️ Memória de Padrões</div>
+      <div class="memory-wrap" id="memoryWrap">
+        <div style="color:var(--muted);font-size:.72rem;padding:4px">Nenhum padrão aprendido ainda.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">🔗 Carteira Real (Binance)</div>
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--line);">
+          <span style="font-size:.75rem;color:var(--muted)">Status:</span>
+          <span id="connStatus" style="color: var(--dn); font-weight: 700;">❌ Offline</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size:.78rem;">
+          <span style="color:var(--muted)">Modo:</span>
+          <span id="modeLabel" style="color: var(--warn); font-weight: 700;">📊 Simulação</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size:.78rem;">
+          <span style="color:var(--muted)">Saldo Real:</span>
+          <span id="realBalance" style="font-weight: 700;">—</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size:.78rem;">
+          <span style="color:var(--muted)">Ordens Abertas:</span>
+          <span id="openOrdersCount" style="font-weight: 700;">0</span>
+        </div>
+        <button class="btn btn-start" onclick="connectBinance()" id="btnConnect" style="width: 100%; margin-top: 8px; font-size:.75rem;">
+          🔐 Conectar Binance
+        </button>
+        <button class="btn btn-stop" onclick="disconnectBinance()" id="btnDisconnect" style="width: 100%; display: none; font-size:.75rem;">
+          🔒 Desconectar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const CFG = {
+  initialBalance: 10000,
+  tradeSize: 0.12,       // 12% do saldo por trade (conservador para risco real)
+  tickInterval: 60000,   // 60s = 1 minuto REAL
+  stopLoss: 0.015,       // 1.5% — proteção rigorosa
+  takeProfit: 0.035,     // 3.5% — lucro realista
+  minConfidence: 0.62,   // 62% — só opera com confiança alta
+  symbol: 'BTCBRL',      // 100% Bitcoin
+  learningRate: 0.35,    // 35% — ALTO! Aprende muito rápido dos erros
+  deepLearning: true,    // Ativa análise profunda de padrões
+  memoryKey: 'iatrader_bitcoin_advanced',
+  
+  // Padrões avançados de memória
+  patternDepth: 12,      // Histórico de 12 padrões diferentes
+  adaptiveThreshold: true,  // Ajusta threshold conforme aprende
+};
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let state = {
+  running: false,
+  balance: CFG.initialBalance,
+  position: null,
+  candles: [],      // Últimas 120 velas de 1 minuto real
+  trades: [],
+  tickTimer: null,
+  wins: 0,
+  losses: 0,
+  totalProfit: 0,
+  learnProgress: 0,
+  memory: loadMemory(),
+  realMode: false,
+  isRealData: false,  // Se usando dados reais de Binance
+  lastPrice: 0,
+  lastUpdate: 0,
+  consecutiveWins: 0,   // Conta wins seguidas
+  consecutiveLosses: 0, // Conta losses seguidas
+};
+
+// ═══════════════════════════════════════════════
+// BINANCE INTEGRATION
+// ═══════════════════════════════════════════════
+class AITraderBinance {
+  constructor(apiKey, apiSecret) {
+    this.apiKey = apiKey;
+    this.apiSecret = apiSecret;
+    this.baseURL = 'https://api.binance.com/api/v3';
+    this.symbols = ['BTCBRL', 'ETHBRL', 'BNBBRL'];
+    this.realBalance = {};
+    this.openOrders = [];
+    this.ws = {};
+  }
+
+  async testConnection() {
+    try {
+      const resp = await fetch(`${this.baseURL}/account`, {
+        headers: { 'X-MBX-APIKEY': this.apiKey }
+      });
+      if (resp.status === 401) return { ok: false, error: 'API Key inválida' };
+      if (resp.status === 403) return { ok: false, error: 'IP não autorizado' };
+      const data = await resp.json();
+      return { ok: true, data };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  async getBalance() {
+    try {
+      const resp = await fetch(`${this.baseURL}/account`, {
+        headers: { 'X-MBX-APIKEY': this.apiKey }
+      });
+      if (!resp.ok) throw new Error('Erro ao buscar saldo');
+      const data = await resp.json();
+      const brlBalance = data.balances.find(b => b.asset === 'BRL');
+      this.realBalance.brl = parseFloat(brlBalance?.free || 0);
+      for (const sym of this.symbols) {
+        const asset = sym.replace('BRL', '');
+        const bal = data.balances.find(b => b.asset === asset);
+        this.realBalance[asset] = parseFloat(bal?.free || 0);
+      }
+      return this.realBalance;
+    } catch (e) {
+      addLog('[ERRO]', 'Erro ao buscar saldo', e.message);
+      return { brl: 0 };
+    }
+  }
+
+  async placeOrder(symbol, side, quantity, price) {
+    try {
+      const body = {
+        symbol: 'BTCBRL',  // Sempre Bitcoin
+        side: side.toUpperCase(),
+        type: 'LIMIT',
+        timeInForce: 'GTC',
+        quantity: quantity.toFixed(8),
+        price: price.toFixed(2),
+        timestamp: Date.now()
+      };
+      const resp = await fetch(`${this.baseURL}/order`, {
+        method: 'POST',
+        headers: { 'X-MBX-APIKEY': this.apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.msg || `Status ${resp.status}`);
+      }
+      return await resp.json();
+    } catch (e) {
+      addLog('[ERRO]', `Falha ao abrir ${side} ${symbol}`, e.message);
+      return null;
+    }
+  }
+
+  async getOpenOrders(symbol) {
+    try {
+      const resp = await fetch(`${this.baseURL}/openOrders?symbol=BTCBRL`, {
+        headers: { 'X-MBX-APIKEY': this.apiKey }
+      });
+      if (!resp.ok) throw new Error('Erro ao buscar ordens');
+      this.openOrders = await resp.json();
+      return this.openOrders;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async cancelOrder(symbol, orderId) {
+    try {
+      const resp = await fetch(`${this.baseURL}/order`, {
+        method: 'DELETE',
+        headers: { 'X-MBX-APIKEY': this.apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: 'BTCBRL', orderId, timestamp: Date.now() })
+      });
+      if (!resp.ok) throw new Error('Erro ao cancelar');
+      return await resp.json();
+    } catch (e) {
+      addLog('[ERRO]', `Falha ao cancelar ordem ${symbol}`, e.message);
+      return null;
+    }
+  }
+
+  startPriceStream(symbol) {
+    const wsUrl = `wss://stream.binance.com:9443/ws/btcbrl@trade`;  // Sempre BTC
+    if (this.ws['BTCBRL']) this.ws['BTCBRL'].close();
+    
+    this.ws['BTCBRL'] = new WebSocket(wsUrl);
+    this.ws['BTCBRL'].onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      const price = parseFloat(data.p);
+      state.realPriceData[symbol] = price;
+      
+      // Sincroniza com gráfico
+      if (state.candles.length > 0 && state.isRealData) {
+        state.candles[state.candles.length - 1].close = price;
+        state.candles[state.candles.length - 1].high = Math.max(state.candles[state.candles.length - 1].high, price);
+        state.candles[state.candles.length - 1].low = Math.min(state.candles[state.candles.length - 1].low, price);
+      }
+    };
+    this.ws['BTCBRL'].onerror = () => { addLog('[INFO]', 'WebSocket Bitcoin desconectado', ''); };
+  }
+
+  stopPriceStream(symbol) {
+    if (this.ws['BTCBRL']) {
+      this.ws['BTCBRL'].close();
+      delete this.ws['BTCBRL'];
+    }
+  }
+}
+
+let trader = null;
+
+// ═══════════════════════════════════════════════
+// FUNÇÕES DE CONEXÃO
+// ═══════════════════════════════════════════════
+async function connectBinance() {
+  const key = prompt('🔐 Cole sua API Key (não será salva):');
+  if (!key) return;
+  
+  const secret = prompt('🔐 Cole sua API Secret (não será salva):');
+  if (!secret) return;
+
+  trader = new AITraderBinance(key, secret);
+  const test = await trader.testConnection();
+  
+  if (!test.ok) {
+    alert('❌ Conexão falhou: ' + test.error);
+    trader = null;
+    return;
+  }
+
+  const bal = await trader.getBalance();
+  $('connStatus').textContent = '✅ Conectado';
+  $('connStatus').style.color = 'var(--up)';
+  $('realBalance').textContent = brl(bal.brl);
+  $('modeLabel').textContent = '🔴 24H REAL BTC';
+  $('modeLabel').style.color = 'var(--dn)';
+  $('btnConnect').style.display = 'none';
+  $('btnDisconnect').style.display = '';
+  
+  state.realMode = true;
+  
+  // Inicia stream de preço APENAS para Bitcoin
+  trader.startPriceStream('BTCBRL');
+  
+  // Monitora ordens a cada 3s
+  setInterval(async () => {
+    const orders = await trader.getOpenOrders('BTCBRL');
+    $('openOrdersCount').textContent = orders.length;
+  }, 3000);
+
+  addLog('[INFO]', '✅ Binance conectada! 24H/7 dias ativo', '');
+}
+
+function disconnectBinance() {
+  if (trader) {
+    trader.stopPriceStream('BTCBRL');
+    trader = null;
+  }
+  state.realMode = false;
+  $('connStatus').textContent = '❌ Offline';
+  $('connStatus').style.color = 'var(--dn)';
+  $('modeLabel').textContent = '📊 Simulação';
+  $('modeLabel').style.color = 'var(--warn)';
+  $('btnConnect').style.display = '';
+  $('btnDisconnect').style.display = 'none';
+  $('realBalance').textContent = '—';
+  $('openOrdersCount').textContent = '0';
+  addLog('[INFO]', 'Desconectado da Binance', '');
+}
+}
+
+function loadMemory() {
+  try { return JSON.parse(localStorage.getItem(CFG.memoryKey)) || { patterns: {}, totalTrades: 0, accuracy: 0 }; }
+  catch { return { patterns: {}, totalTrades: 0, accuracy: 0 }; }
+}
+
+function saveMemory() {
+  localStorage.setItem(CFG.memoryKey, JSON.stringify(state.memory));
+}
+
+// ═══════════════════════════════════════════════
+// MARKET SIMULATION
+// ═══════════════════════════════════════════════
+let trend = 0;         // -1..1 tendência atual
+let trendDuration = 0;
+
+function nextCandle(prev) {
+  // Atualiza tendência
+  trendDuration--;
+  if (trendDuration <= 0) {
+    trend = (Math.random() - 0.48) * 0.6;
+    trendDuration = Math.floor(8 + Math.random() * 20);
+  }
+
+  const base = prev ? prev.close : CFG.basePrice;
+  const vol = base * CFG.volatility;
+  const drift = base * trend * 0.004;
+  const open = base;
+  const noise = () => (Math.random() - 0.5) * vol;
+  const high = open + Math.abs(noise()) + Math.abs(drift) + vol * 0.2;
+  const low  = open - Math.abs(noise()) - Math.abs(drift) - vol * 0.2;
+  const close = Math.max(low + 10, Math.min(high - 10, open + drift + noise()));
+  const volume = 0.5 + Math.random() * 4;
+  const time = prev ? prev.time + 60000 : Date.now();
+
+  return { open, high, low, close, volume, time };
+}
+
+// Busca histórico REAL de Bitcoin de Binance (últimas 100 velas de 1min)
+async function initCandlesFromBinance() {
+  try {
+    addLog('[INFO]', '📡 Baixando histórico real de Bitcoin...', '');
+    const resp = await fetch(
+      'https://api.binance.com/api/v3/klines?symbol=BTCBRL&interval=1m&limit=100'
+    );
+    if (!resp.ok) throw new Error('Falha ao buscar dados');
+    const data = await resp.json();
+    
+    state.candles = data.map(k => ({
+      time: k[0],
+      open: parseFloat(k[1]),
+      high: parseFloat(k[2]),
+      low: parseFloat(k[3]),
+      close: parseFloat(k[4]),
+      volume: parseFloat(k[7])
+    }));
+    
+    // Remove candle incompleto (atual)
+    if (state.candles.length > 0) state.candles.pop();
+    
+    state.isRealData = true;
+    state.lastPrice = state.candles[state.candles.length - 1].close;
+    addLog('[✅]', `${state.candles.length} candles reais carregadas!`, '');
+  } catch (e) {
+    addLog('[⚠️]', 'Erro ao buscar, usando simulação...', e.message);
+    initCandlesSimulated();
+  }
+}
+
+// Fallback: simula se Binance falhar
+function initCandlesSimulated() {
+  state.candles = [];
+  let c = null;
+  for (let i = 0; i < 80; i++) { c = nextCandle(c); state.candles.push(c); }
+  state.isRealData = false;
+}
+
+// ═══════════════════════════════════════════════
+// INDICADORES TÉCNICOS
+// ═══════════════════════════════════════════════
+function ema(closes, period) {
+  const k = 2 / (period + 1);
+  let e = closes.slice(0, period).reduce((a,b)=>a+b,0) / period;
+  for (let i = period; i < closes.length; i++) e = closes[i]*k + e*(1-k);
+  return e;
+}
+
+function rsi(closes, period=14) {
+  if (closes.length < period+1) return 50;
+  let gains=0, losses=0;
+  for (let i=closes.length-period; i<closes.length; i++) {
+    const d = closes[i]-closes[i-1];
+    if (d>0) gains+=d; else losses+=Math.abs(d);
+  }
+  gains/=period; losses/=period;
+  if (losses===0) return 100;
+  const rs = gains/losses;
+  return 100 - 100/(1+rs);
+}
+
+function macd(closes) {
+  if (closes.length < 26) return { macd: 0, signal: 0, hist: 0 };
+  const ema12 = ema(closes, 12);
+  const ema26 = ema(closes, 26);
+  const m = ema12 - ema26;
+  // approximate signal
+  const recentMacd = closes.slice(-10).map((_,i) => {
+    const sl = closes.slice(0, closes.length-10+i+1);
+    if (sl.length<26) return 0;
+    return ema(sl,12) - ema(sl,26);
+  });
+  const sig = ema(recentMacd, 9);
+  return { macd: m, signal: sig, hist: m - sig };
+}
+
+function bollinger(closes, period=20, mult=2) {
+  if (closes.length < period) return { upper: 0, lower: 0, mid: 0 };
+  const slice = closes.slice(-period);
+  const mid = slice.reduce((a,b)=>a+b,0)/period;
+  const std = Math.sqrt(slice.map(v=>(v-mid)**2).reduce((a,b)=>a+b,0)/period);
+  return { upper: mid+mult*std, lower: mid-mult*std, mid };
+}
+
+function calcIndicators() {
+  const closes = state.candles.map(c=>c.close);
+  const vols = state.candles.map(c=>c.volume);
+  const rsiVal = rsi(closes);
+  const macdVal = macd(closes);
+  const ema9Val = ema(closes, 9);
+  const ema21Val = ema(closes, 21);
+  const bbVal = bollinger(closes);
+  const avgVol = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
+  const lastVol = vols[vols.length-1];
+  const trend21 = ema(closes,21) > ema(closes.slice(0,-5),21) ? 'Alta' : 'Queda';
+
+  return { rsiVal, macdVal, ema9Val, ema21Val, bbVal, avgVol, lastVol, trend21 };
+}
+
+// ═══════════════════════════════════════════════
+// IA — SISTEMA DE DECISÃO
+// ═══════════════════════════════════════════════
+function scoreSignals(ind) {
+  const price = state.candles[state.candles.length-1].close;
+  const signals = {};
+
+  // RSI
+  if (ind.rsiVal < 32) signals.rsi = 1.0;
+  else if (ind.rsiVal < 42) signals.rsi = 0.5;
+  else if (ind.rsiVal > 72) signals.rsi = -1.0;
+  else if (ind.rsiVal > 60) signals.rsi = -0.4;
+  else signals.rsi = 0;
+
+  // MACD
+  if (ind.macdVal.hist > 0 && ind.macdVal.macd > ind.macdVal.signal) signals.macd = 0.9;
+  else if (ind.macdVal.hist < 0 && ind.macdVal.macd < ind.macdVal.signal) signals.macd = -0.9;
+  else signals.macd = ind.macdVal.hist > 0 ? 0.3 : -0.3;
+
+  // EMA cross
+  if (ind.ema9Val > ind.ema21Val) signals.ema = 0.8;
+  else signals.ema = -0.8;
+
+  // Bollinger
+  if (price < ind.bbVal.lower * 1.005) signals.bollinger = 0.9;
+  else if (price > ind.bbVal.upper * 0.995) signals.bollinger = -0.9;
+  else if (price < ind.bbVal.mid) signals.bollinger = 0.2;
+  else signals.bollinger = -0.2;
+
+  // Volume
+  signals.volume = ind.lastVol > ind.avgVol * 1.3 ? 0.6 : ind.lastVol < ind.avgVol * 0.7 ? -0.3 : 0.1;
+
+  return signals;
+}
+
+// Pega padrão quantizado para usar como chave de memória
+function getPatternKey(signals) {
+  const quantize = v => v > 0.4 ? 'B' : v < -0.4 ? 'S' : 'N';
+  return Object.values(signals).map(quantize).join('');
+}
+
+// Score de memória AVANÇADO — aprendizado profundo
+function memoryScore(key) {
+  const pat = state.memory.patterns[key];
+  if (!pat || pat.count < 2) return 0;
+  
+  const wr = pat.wins / pat.count;
+  const confidence = pat.confidence || (wr - 0.5) * 2;
+  
+  // Peso se viu muitas vezes
+  const frequencyBoost = Math.min(1.5, 0.5 + pat.count / 20);
+  
+  // Penaliza se recente perda
+  const recentPenalty = state.consecutiveLosses > 3 ? 0.6 : 1.0;
+  
+  // Score = confiança * frequência * histórico
+  return confidence * frequencyBoost * recentPenalty * Math.min(1, pat.count / 10);
+}
+
+// Decisão final
+function decide(signals, memScore) {
+  // Pesos com aprendizado
+  const w = { rsi:0.22, macd:0.20, ema:0.18, bollinger:0.20, volume:0.10, memory: 0.10 };
+  const allSignals = { ...signals, memory: memScore };
+
+  let score = 0;
+  for (const [k,v] of Object.entries(allSignals)) score += (w[k]||0.1) * (v||0);
+
+  const confidence = Math.min(1, Math.abs(score) * 1.8);
+  if (score > 0.18 && confidence >= CFG.minConfidence) return { action:'BUY', score, confidence };
+  if (score < -0.18 && confidence >= CFG.minConfidence) return { action:'SELL', score, confidence };
+  return { action:'HOLD', score, confidence };
+}
+
+// Aprendizado AVANÇADO — rastreia múltiplas dimensões
+function learn(patternKey, won, pnlPercent) {
+  const mem = state.memory;
+  
+  // Cria padrão se novo
+  if (!mem.patterns[patternKey]) {
+    mem.patterns[patternKey] = {
+      wins: 0,
+      losses: 0,
+      count: 0,
+      totalPnl: 0,
+      lastSeen: Date.now(),
+      profitFactor: 1.0,
+      confidence: 0.5
+    };
+  }
+  
+  const pat = mem.patterns[patternKey];
+  pat.count++;
+  pat.totalPnl += pnlPercent || 0;
+  pat.lastSeen = Date.now();
+  
+  if (won) {
+    pat.wins++;
+    state.consecutiveWins++;
+    state.consecutiveLosses = 0;
+  } else {
+    pat.losses++;
+    state.consecutiveLosses++;
+    state.consecutiveWins = 0;
+  }
+  
+  // Calcula Profit Factor
+  const winPnl = pat.totalPnl > 0 ? pat.totalPnl : 1;
+  const lossPnl = pat.totalPnl < 0 ? Math.abs(pat.totalPnl) : 1;
+  pat.profitFactor = winPnl / (lossPnl + 0.001);
+  
+  // Atualiza confiança com HIGH learning rate
+  const winRate = pat.wins / Math.max(1, pat.count);
+  pat.confidence = pat.confidence * (1 - CFG.learningRate) + winRate * CFG.learningRate;
+  
+  // Q-update de acurácia global
+  const newAcc = (state.wins + state.losses > 0) ? state.wins / (state.wins + state.losses) : 0.5;
+  mem.accuracy = mem.accuracy * (1 - CFG.learningRate) + newAcc * CFG.learningRate;
+  mem.totalTrades++;
+  
+  state.learnProgress = Math.min(100, mem.totalTrades / 2);
+  
+  // Auto-cleanup: remove padrões ruins (muito antigos e com W/R < 40%)
+  if (pat.count > 8 && (pat.wins / pat.count) < 0.4 && 
+      Date.now() - pat.lastSeen > 3600000) {
+    delete mem.patterns[patternKey];
+  }
+  
+  saveMemory();
+}
+
+// ═══════════════════════════════════════════════
+// TICK — loop principal
+// ═══════════════════════════════════════════════
+function tick() {
+  // Gera novo candle (simulado neste modo)
+  const prev = state.candles[state.candles.length - 1];
+  const candle = nextCandle(prev);
+  state.candles.push(candle);
+  if (state.candles.length > 120) state.candles.shift();
+
+  const price = candle.close;
+  const ind = calcIndicators();
+  const signals = scoreSignals(ind);
+  const patKey = getPatternKey(signals);
+  const memScore = memoryScore(patKey);
+  const decision = decide(signals, memScore);
+
+  // Verifica Stop/Take se tiver posição
+  if (state.position) {
+    const entry = state.position.price;
+    const pnlPct = (price - entry) / entry * (state.position.type==='long' ? 1 : -1);
+    if (pnlPct <= -CFG.stopLoss || pnlPct >= CFG.takeProfit || decision.action==='SELL') {
+      closeTrade(price, patKey);
+    }
+  } else {
+    // Abre nova posição
+    if (decision.action==='BUY' && state.balance > 100) {
+      openTrade(price, 'long', decision.confidence);
+      state.position._patKey = patKey;
+    }
+  }
+
+  updateUI(ind, signals, memScore, decision);
+  drawChart();
+  drawConfRing(decision.confidence);
+}
+
+function openTrade(price, type, conf) {
+  const size = state.balance * CFG.tradeSize;
+  
+  if (state.realMode && trader) {
+    // Modo real — envia ordem para Binance
+    const quantity = (size / price).toFixed(8);
+    const side = type === 'long' ? 'BUY' : 'SELL';
+    trader.placeOrder('BTCBRL', side, quantity, price).then(order => {
+      if (order) {
+        state.position = { 
+          price, 
+          size, 
+          type, 
+          openTime: Date.now(), 
+          _patKey: null, 
+          orderId: order.orderId,
+          real: true,
+          symbol: 'BTCBRL'
+        };
+        addLog(`🔴 ${side} REAL`, price, null);
+      }
+    });
+  } else {
+    // Modo simulação
+    state.position = { price, size, type, openTime: Date.now(), _patKey: null, real: false, symbol: 'BTCBRL' };
+    const side = type === 'long' ? 'BUY' : 'SELL';
+    addLog(`📊 ${side} SIM`, price, null);
+  }
+}
+
+function closeTrade(price, patKey) {
+  const pos = state.position;
+  if (!pos) return;
+
+  const pnlPct = (price - pos.price) / pos.price * (pos.type==='long' ? 1 : -1);
+  const pnl = pos.size * pnlPct;
+  
+  if (state.realMode && trader && pos.real && pos.orderId) {
+    // Modo real — cancela ordem na Binance
+    trader.cancelOrder(pos.symbol, pos.orderId).then(() => {
+      state.balance += pnl;
+      state.totalProfit += pnl;
+      const won = pnl > 0;
+      if (won) state.wins++; else state.losses++;
+      const key = pos._patKey || patKey;
+      const pnlPct = (price - pos.price) / pos.price * (pos.type === 'long' ? 1 : -1);
+      learn(key, won, pnlPct);
+      state.trades.push({ action:'SELL', price, pnl, time: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) });
+      const side = pos.type === 'long' ? 'SELL' : 'BUY';
+      addLog(`🔴 ${side} REAL`, price, pnl);
+      addMemoryRow(key, pos.price, price, pnl);
+      state.position = null;
+    });
+  } else {
+    // Modo simulação
+    state.balance += pnl;
+    state.totalProfit += pnl;
+    const won = pnl > 0;
+    if (won) state.wins++; else state.losses++;
+    const key = pos._patKey || patKey;
+    const pnlPct = (price - pos.price) / pos.price * (pos.type === 'long' ? 1 : -1);
+    learn(key, won, pnlPct);
+    state.trades.push({ action:'SELL', price, pnl, time: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) });
+    addLog('📊 SELL SIM', price, pnl);
+    addMemoryRow(key, pos.price, price, pnl);
+    state.position = null;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+
+function addLog(action, price, pnl) {
+  const log = $('tradeLog');
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  const fmtPnl = pnl != null ? (pnl>=0?'+':'')+brl(pnl) : '—';
+  row.innerHTML = `
+    <span class="log-time">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+    <span class="log-action ${action.toLowerCase()}">${action}</span>
+    <span class="log-price">${brl(price)}</span>
+    <span class="log-pnl ${pnl>=0?'':'dn'}" style="${pnl>0?'color:var(--up)':pnl<0?'color:var(--dn)':''}">${fmtPnl}</span>
+  `;
+  log.prepend(row);
+  if (log.children.length > 40) log.lastChild.remove();
+}
+
+function addMemoryRow(key, entryPrice, exitPrice, pnl) {
+  const wrap = $('memoryWrap');
+  // Remove placeholder
+  const ph = wrap.querySelector('[data-ph]');
+  if (ph) ph.remove();
+  const row = document.createElement('div');
+  row.className = 'mem-row';
+  const pat = state.memory.patterns[key];
+  const wr = pat ? Math.round(pat.wins/pat.count*100) : 50;
+  row.innerHTML = `
+    <span class="mem-tag ${pnl>=0?'buy':'sell'}">${pnl>=0?'WIN':'LOSS'}</span>
+    <span style="color:var(--muted);font-size:.68rem">${key.substring(0,6)} · WR ${wr}%</span>
+    <span class="mem-pnl ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${brl(pnl)}</span>
+  `;
+  wrap.prepend(row);
+  if (wrap.children.length > 20) wrap.lastChild.remove();
+}
+
+function setBar(id, scoreId, val) {
+  const pct = Math.min(100, Math.max(0, (val+1)/2*100));
+  const el = $(id), sc = $(scoreId);
+  el.style.width = pct+'%';
+  el.className = 'bar-fill '+(val>0.2?'bull':val<-0.2?'bear':'neutral');
+  sc.textContent = (val>0?'+':'')+val.toFixed(2);
+  sc.style.color = val>0.2?'var(--up)':val<-0.2?'var(--dn)':'var(--warn)';
+}
+
+function updateUI(ind, signals, memScore, decision) {
+  const price = state.candles[state.candles.length-1].close;
+  const prevPrice = state.candles[state.candles.length-2]?.close || price;
+
+  $('currentPriceTag').textContent = brl(price);
+  $('currentPriceTag').style.color = price>=prevPrice?'var(--up)':'var(--dn)';
+
+  // Indicators
+  const rsiEl = $('iRsi');
+  rsiEl.textContent = ind.rsiVal.toFixed(1);
+  rsiEl.style.color = ind.rsiVal<35?'var(--up)':ind.rsiVal>65?'var(--dn)':'var(--ink)';
+  $('iMacd').textContent = ind.macdVal.hist.toFixed(0);
+  $('iMacd').style.color = ind.macdVal.hist>0?'var(--up)':'var(--dn)';
+  $('iEma9').textContent = brl(ind.ema9Val);
+  $('iEma21').textContent = brl(ind.ema21Val);
+  $('iBbu').textContent = brl(ind.bbVal.upper);
+  $('iBbl').textContent = brl(ind.bbVal.lower);
+  $('iVol').textContent = ind.lastVol.toFixed(2);
+  const trendEl = $('iTrend');
+  trendEl.textContent = ind.trend21;
+  trendEl.style.color = ind.trend21==='Alta'?'var(--up)':'var(--dn)';
+
+  // Brain bars
+  setBar('bRsi','bRsiS', signals.rsi);
+  setBar('bMacd','bMacdS', signals.macd);
+  setBar('bEma','bEmaS', signals.ema);
+  setBar('bBoll','bBollS', signals.bollinger);
+  setBar('bVol','bVolS', signals.volume);
+  setBar('bMem','bMemS', memScore);
+
+  // Decision
+  const dec = $('aiDecision');
+  dec.className = 'ai-decision '+(decision.action==='BUY'?'buy':decision.action==='SELL'?'sell':'hold');
+  const icons = {BUY:'📈',SELL:'📉',HOLD:'⏸'};
+  dec.innerHTML = `
+    <span class="dec-icon">${icons[decision.action]}</span>
+    <div><div style="font-size:.7rem;color:var(--muted);font-weight:400">Decisão atual</div>${decision.action}${state.position?'<span style="font-size:.66rem;color:var(--warn)"> • EM POSIÇÃO</span>':''}</div>
+    <span class="dec-conf">Confiança: ${(decision.confidence*100).toFixed(0)}%</span>
+  `;
+
+  // Stats
+  const winsLosses = state.wins+state.losses;
+  const wr = winsLosses > 0 ? (state.wins/winsLosses*100).toFixed(0)+'%' : '—';
+  $('sBalance').textContent = brl(state.balance);
+  $('sBalance').style.color = state.balance>=CFG.initialBalance?'var(--up)':'var(--dn)';
+  const profEl = $('sProfit');
+  profEl.textContent = (state.totalProfit>=0?'+':'')+brl(state.totalProfit);
+  profEl.className = 'stat-val '+(state.totalProfit>=0?'up':'dn');
+  $('sWinRate').textContent = wr;
+  $('sWinRate').className = 'stat-val '+(parseFloat(wr)>=50?'up':'dn');
+  $('sTrades').textContent = winsLosses;
+  $('sLearn').textContent = Math.round(state.learnProgress)+'%';
+
+  // Learn bar
+  const acc = Math.round((state.memory.accuracy||0.5)*100);
+  $('learnFill').style.width = acc+'%';
+  $('learnTag').textContent = Object.keys(state.memory.patterns).length+' padrões';
+  $('confTag').textContent = (decision.confidence*100).toFixed(0)+'%';
+}
+
+function brl(v) {
+  return 'R$ '+Math.round(v).toLocaleString('pt-BR');
+}
+
+// ═══════════════════════════════════════════════
+// GRÁFICO DE VELAS
+// ═══════════════════════════════════════════════
+function drawChart() {
+  const canvas = $('chart');
+  const dpr = window.devicePixelRatio||1;
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+
+  const padL=52, padR=10, padT=12, padB=28;
+  const cw=W-padL-padR, ch=H-padT-padB;
+
+  // Fundo
+  ctx.fillStyle='#080f1c';
+  ctx.fillRect(0,0,W,H);
+
+  const visible = state.candles.slice(-60);
+  if (visible.length<2) return;
+
+  const prices = visible.flatMap(c=>[c.high,c.low]);
+  let minP=Math.min(...prices), maxP=Math.max(...prices);
+  const pad=(maxP-minP)*0.08; minP-=pad; maxP+=pad;
+
+  const toY = p => padT + ch - (p-minP)/(maxP-minP)*ch;
+  const cw2 = cw/visible.length;
+  const body = Math.max(1, cw2*0.6);
+
+  // Grid
+  ctx.strokeStyle='rgba(80,120,200,0.1)'; ctx.lineWidth=1;
+  for (let i=0;i<=5;i++) {
+    const y=padT+ch/5*i;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+cw,y); ctx.stroke();
+    const price=maxP-(maxP-minP)/5*i;
+    ctx.fillStyle='rgba(100,140,200,0.7)';
+    ctx.font='10px Segoe UI'; ctx.textAlign='right';
+    ctx.fillText('R$'+Math.round(price/1000)+'k', padL-3, y+4);
+  }
+
+  // Bollinger bands
+  const closes20 = state.candles.slice(-80).map(c=>c.close);
+  ctx.fillStyle='rgba(66,120,255,0.06)';
+  const bbPath = new Path2D();
+  for (let i=0;i<visible.length;i++) {
+    const sl = closes20.slice(0, closes20.length-visible.length+i+1);
+    if (sl.length<20) continue;
+    const bb = bollinger(sl);
+    const x = padL + (i+0.5)*cw2;
+    if (i===0) bbPath.moveTo(x, toY(bb.upper)); else bbPath.lineTo(x,toY(bb.upper));
+  }
+  for (let i=visible.length-1;i>=0;i--) {
+    const sl = closes20.slice(0, closes20.length-visible.length+i+1);
+    if (sl.length<20) continue;
+    const bb = bollinger(sl);
+    const x = padL + (i+0.5)*cw2;
+    bbPath.lineTo(x, toY(bb.lower));
+  }
+  bbPath.closePath();
+  ctx.fill(bbPath);
+
+  // EMA lines
+  const drawEma = (period, color) => {
+    ctx.strokeStyle=color; ctx.lineWidth=1.2; ctx.setLineDash([]);
+    ctx.beginPath();
+    let first=true;
+    for (let i=0;i<visible.length;i++) {
+      const sl = closes20.slice(0, closes20.length-visible.length+i+1);
+      if (sl.length<period) continue;
+      const ev = ema(sl, period);
+      const x = padL + (i+0.5)*cw2;
+      if (first){ctx.moveTo(x,toY(ev));first=false;} else ctx.lineTo(x,toY(ev));
+    }
+    ctx.stroke();
+  };
+  drawEma(9,'rgba(255,180,60,0.7)');
+  drawEma(21,'rgba(100,180,255,0.7)');
+
+  // Candles
+  for (let i=0;i<visible.length;i++) {
+    const c=visible[i];
+    const x=padL+(i+0.5)*cw2;
+    const bull=c.close>=c.open;
+    const col=bull?'#22e87a':'#f04f5e';
+    const shadCol=bull?'rgba(34,232,122,0.5)':'rgba(240,79,94,0.5)';
+    ctx.strokeStyle=shadCol; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
+    const by=toY(Math.max(c.open,c.close));
+    const bh=Math.max(1,Math.abs(toY(c.open)-toY(c.close)));
+    ctx.fillStyle=col;
+    ctx.fillRect(x-body/2, by, body, bh);
+  }
+
+  // Marca posição atual
+  if (state.position) {
+    const py = toY(state.position.price);
+    ctx.strokeStyle='rgba(255,200,74,0.7)'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(padL,py); ctx.lineTo(padL+cw,py); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,200,74,0.85)'; ctx.font='bold 10px Segoe UI';
+    ctx.textAlign='left';
+    ctx.fillText('ENTRADA '+brl(state.position.price), padL+4, py-3);
+  }
+
+  // Price line
+  const lastPrice = visible[visible.length-1].close;
+  const ly = toY(lastPrice);
+  ctx.strokeStyle='rgba(56,170,255,0.5)'; ctx.lineWidth=1; ctx.setLineDash([2,3]);
+  ctx.beginPath(); ctx.moveTo(padL,ly); ctx.lineTo(padL+cw,ly); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ═══════════════════════════════════════════════
+// CONFIDENCE RING
+// ═══════════════════════════════════════════════
+function drawConfRing(conf) {
+  const canvas = $('confRing');
+  const ctx = canvas.getContext('2d');
+  const c = {x:60,y:60,r:48};
+  ctx.clearRect(0,0,120,120);
+
+  // Track
+  ctx.beginPath(); ctx.arc(c.x,c.y,c.r,0,Math.PI*2);
+  ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=10; ctx.stroke();
+
+  // Fill
+  const angle = conf * Math.PI * 2;
+  const color = conf>0.7?'#22e87a':conf>0.5?'#ffc84a':'#f04f5e';
+  const grad = ctx.createLinearGradient(0,0,120,120);
+  grad.addColorStop(0,color); grad.addColorStop(1,'rgba(56,170,255,0.8)');
+  ctx.beginPath();
+  ctx.arc(c.x,c.y,c.r,-Math.PI/2,-Math.PI/2+angle);
+  ctx.strokeStyle=grad; ctx.lineWidth=10; ctx.lineCap='round'; ctx.stroke();
+
+  // Text
+  ctx.fillStyle=color; ctx.font='bold 22px Segoe UI'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(Math.round(conf*100)+'%',c.x,c.y-6);
+  ctx.fillStyle='rgba(150,180,220,0.7)'; ctx.font='10px Segoe UI';
+  ctx.fillText('CONFIANÇA',c.x,c.y+12);
+}
+
+// ═══════════════════════════════════════════════
+// CONTROLES
+// ═══════════════════════════════════════════════
+$('btnStart').onclick = () => {
+  if (state.running) return;
+  state.running = true;
+  $('statusDot').className='status-dot';
+  $('statusTxt').textContent='Operando 24H';
+  $('btnStart').style.display='none';
+  $('btnStop').style.display='';
+  state.tickTimer = setInterval(tick, CFG.tickInterval);
+  tick(); // imediato
+};
+
+$('btnStop').onclick = () => {
+  state.running = false;
+  clearInterval(state.tickTimer);
+  $('statusDot').className='status-dot off';
+  $('statusTxt').textContent='Parado';
+  $('btnStart').style.display='';
+  $('btnStop').style.display='none';
+};
+
+$('btnReset').onclick = () => {
+  if (!confirm('Apagar toda a memória aprendida?')) return;
+  localStorage.removeItem(CFG.memoryKey);
+  state.memory = { patterns:{}, totalTrades:0, accuracy:0 };
+  state.wins=0; state.losses=0; state.totalProfit=0;
+  state.balance=CFG.initialBalance; state.position=null; state.learnProgress=0;
+  $('memoryWrap').innerHTML='<div data-ph style="color:var(--muted);font-size:.72rem;padding:4px">Nenhum padrão aprendido ainda.</div>';
+  $('tradeLog').innerHTML='<div style="color:var(--muted);font-size:.74rem;padding:8px 0">Aguardando a IA iniciar...</div>';
+  alert('Memória resetada!');
+};
+
+// Carrega dados reais ao abrir
+window.addEventListener('load', async () => {
+  try {
+    addLog('[⏳]', 'Carregando dados de Bitcoin...', '');
+    await initCandlesFromBinance();
+    drawChart();
+    addLog('[✅]', 'Bitcoin carregado! Pronto para teste.', '');
+  } catch (e) {
+    addLog('[❌]', 'Erro ao carregar', e.message);
+  }
+});
+
+// TESTE 24H NÃO-BLOQUEANTE
+let test24hActive = false, test24hTimer = null, tickCount = 0;
+
+function startTest24h() {
+  if (test24hActive) return;
+  addLog('[🚀]', 'INICIANDO TESTE 24H...', '');
+  test24hActive = true;
+  state.running = true;
+  tickCount = 0;
+  $('statusDot').classList.remove('off');
+  $('statusTxt').textContent = '▶ TESTE 24H';
+  $('btnStart').style.display = 'none';
+  $('btnStop').style.display = '';
+  
+  // Processa 1 tick a cada 300ms (não bloqueia UI)
+  test24hTimer = setInterval(() => {
+    for (let i = 0; i < 10; i++) {  // Batches de 10 ticks sem render
+      tick();
+      tickCount++;
+    }
+    
+    // Atualiza UI apenas a cada 50 ticks
+    if (tickCount % 50 === 0) {
+      const ind = calcIndicators();
+      updateUI(ind, {}, 0, { action: 'HOLD', confidence: 0 });
+    }
+    
+    if (tickCount >= 1440) stopTest24h();
+    $('statusTxt').textContent = `▶ TESTE 24H (${tickCount}/1440 min)`; // Shows progress
+  }, 300);
+}
+
+function stopTest24h() {
+  clearInterval(test24hTimer);
+  test24hActive = false;
+  state.running = false;
+  $('statusDot').classList.add('off');
+  $('statusTxt').textContent = 'Parado';
+  $('btnStart').style.display = '';
+  $('btnStop').style.display = 'none';
+  
+  const wr = state.wins + state.losses > 0 ? (state.wins / (state.wins + state.losses) * 100).toFixed(1) : 0;
+  const profit = ((state.totalProfit / CFG.initialBalance) * 100).toFixed(2);
+  const patterns = Object.keys(state.memory.patterns).length;
+  
+  const report = `✅ TESTE 24H CONCLUÍDO!\n\nOperações: ${state.wins + state.losses}\nWins: ${state.wins} | Losses: ${state.losses}\nWin Rate: ${wr}%\nLucro Total: ${profit}%\nSaldo Final: R$ ${state.balance.toFixed(2)}\nPatrões Aprendidos: ${patterns}\nAprendizado: ${state.learnProgress.toFixed(0)}%`;
+  
+  alert(report);
+  addLog('[✅]', 'Teste 24h concluído!', '');
+  addLog('[📊]', `${state.wins}W/${state.losses}L | ${profit}% | ${patterns} padrões`, '');
+}
+
+$('btnStop').onclick = stopTest24h;
+
+
+</script>
+</body>
+</html>

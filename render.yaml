@@ -1,0 +1,16 @@
+# Deploy automático no Render.com
+
+services:
+  - type: web
+    name: ia-trader-bitcoin
+    runtime: node
+    plan: standard
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: NODE_ENV
+        value: production
+      - key: IA_MODE
+        value: simulation
