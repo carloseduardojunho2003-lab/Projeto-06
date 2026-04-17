@@ -95,6 +95,7 @@ let state = {
   realBalance: 0,
   binanceConnected: false,
   binanceStatus: 'Desconectada',
+  binanceLastError: '',
   wins: 0,
   losses: 0,
   totalProfit: 0,
@@ -132,10 +133,28 @@ class BinanceAPI {
     const response = await axios({
       method,
       url: `${this.baseURL}${path}?${searchParams.toString()}`,
-      headers: { 'X-MBX-APIKEY': this.apiKey }
+      headers: { 'X-MBX-APIKEY': this.apiKey },
+      timeout: 12000
     });
 
     return response.data;
+  }
+
+  normalizeError(error) {
+    const statusCode = error?.response?.status;
+    const apiMessage = error?.response?.data?.msg || '';
+
+    if (statusCode === 401) return 'API Key invalida';
+    if (statusCode === 403) return 'IP nao autorizado';
+    if (apiMessage.includes('Invalid API-key')) return 'API Key invalida';
+    if (apiMessage.includes('Signature for this request is not valid')) return 'API Secret invalido';
+    if (apiMessage.includes('Invalid IP')) return 'IP nao autorizado';
+    if (apiMessage.includes('permissions')) return 'Permissao insuficiente na API';
+    if (apiMessage.includes('Timestamp')) return 'Horario do servidor fora do permitido';
+    if (error?.code === 'ECONNABORTED') return 'Tempo de resposta da Binance esgotado';
+    if (error?.code === 'ENOTFOUND') return 'Falha de rede ao acessar Binance';
+
+    return apiMessage || error?.message || 'Falha na conexao';
   }
 
   async getBalance() {
@@ -340,11 +359,17 @@ wss.on('connection', (ws, req) => {
         state.mode = cmd.mode;
         broadcastUpdate();
       } else if (cmd.type === 'CONNECT_BINANCE') {
+        state.binanceConnected = false;
+        state.binanceStatus = 'Conectando...';
+        state.binanceLastError = '';
+        broadcastUpdate();
+
         binanceAPI = new BinanceAPI(cmd.apiKey, cmd.apiSecret);
         binanceAPI.getBalance().then(bal => {
           state.realBalance = bal;
           state.binanceConnected = true;
           state.binanceStatus = 'Conectada';
+          state.binanceLastError = '';
           console.log('🔌 Binance conectada');
           broadcastUpdate();
           ws.send(JSON.stringify({ type: 'BINANCE_CONNECTED', balance: bal }));
@@ -352,10 +377,11 @@ wss.on('connection', (ws, req) => {
           binanceAPI = null;
           state.realBalance = 0;
           state.binanceConnected = false;
-          state.binanceStatus = error?.response?.data?.msg || 'Falha na conexao';
+          state.binanceStatus = 'Desconectada';
+          state.binanceLastError = new BinanceAPI('', '').normalizeError(error);
           console.error('Erro ao conectar Binance:', error.message);
           broadcastUpdate();
-          ws.send(JSON.stringify({ type: 'BINANCE_ERROR', error: state.binanceStatus }));
+          ws.send(JSON.stringify({ type: 'BINANCE_ERROR', error: state.binanceLastError }));
         });
       } else if (cmd.type === 'GET_BALANCE') {
         if (binanceAPI) {
@@ -363,11 +389,13 @@ wss.on('connection', (ws, req) => {
             state.realBalance = bal;
             state.binanceConnected = true;
             state.binanceStatus = 'Conectada';
+            state.binanceLastError = '';
             broadcastUpdate();
           }).catch((error) => {
             state.realBalance = 0;
             state.binanceConnected = false;
-            state.binanceStatus = error?.response?.data?.msg || 'Falha na conexao';
+            state.binanceStatus = 'Desconectada';
+            state.binanceLastError = binanceAPI.normalizeError(error);
             broadcastUpdate();
           });
         }
@@ -429,15 +457,17 @@ app.post('/api/connect', (req, res) => {
     state.realBalance = bal;
     state.binanceConnected = true;
     state.binanceStatus = 'Conectada';
+    state.binanceLastError = '';
     broadcastUpdate();
     res.json({ ok: true, balance: bal });
   }).catch((error) => {
     binanceAPI = null;
     state.realBalance = 0;
     state.binanceConnected = false;
-    state.binanceStatus = error?.response?.data?.msg || 'Falha na conexao';
+    state.binanceStatus = 'Desconectada';
+    state.binanceLastError = new BinanceAPI('', '').normalizeError(error);
     broadcastUpdate();
-    res.status(400).json({ ok: false, error: state.binanceStatus });
+    res.status(400).json({ ok: false, error: state.binanceLastError });
   });
 });
 

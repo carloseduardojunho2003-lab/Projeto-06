@@ -47,6 +47,21 @@
       background: #0f0;
       box-shadow: 0 0 8px rgba(0, 255, 0, 0.45);
     }
+
+    .binance-meta {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #9aa7b8;
+      min-height: 16px;
+    }
+
+    .binance-meta.error {
+      color: #ff6b6b;
+    }
+
+    .binance-meta.ok {
+      color: #6dff8b;
+    }
     
     .container {
       display: grid;
@@ -323,9 +338,10 @@
       <span class="stat-label">Conta:</span>
       <span class="stat-value" id="binanceStatusWrap"><span class="mini-status-dot" id="binanceDot"></span> <span id="binanceStatus">Desconectada</span></span>
     </div>
+    <div class="binance-meta" id="binanceMessage">Sem conexao com a Binance.</div>
     <input type="text" id="apiKey" placeholder="API Key">
     <input type="password" id="apiSecret" placeholder="API Secret">
-    <button onclick="connectBinance()" style="width: 100%; margin-top: 5px;">Conectar</button>
+    <button onclick="connectBinance()" id="connectBinanceBtn" style="width: 100%; margin-top: 5px;">Conectar</button>
   </div>
   
   <!-- CENTER: GRÁFICO e STATS -->
@@ -437,6 +453,7 @@
   let performanceData = [];
   let btcDailyCloses = [];
   const MAX_CHART_POINTS = 50;
+  let binanceConnectTimeout = null;
   
   // ═════════════════════════════════════════════════════════
   function init() {
@@ -630,8 +647,10 @@
         if (msg.type === 'UPDATE' || msg.type === 'INIT') {
           updateUI(msg.data);
         } else if (msg.type === 'BINANCE_CONNECTED') {
+          clearTimeout(binanceConnectTimeout);
           addLog('🔌 Binance conectada com sucesso', 'trade');
         } else if (msg.type === 'BINANCE_ERROR') {
+          clearTimeout(binanceConnectTimeout);
           addLog(`✗ Binance: ${msg.error || 'falha na conexao'}`, 'loss');
         }
       };
@@ -666,12 +685,22 @@
 
     const binanceDot = document.getElementById('binanceDot');
     const binanceStatus = document.getElementById('binanceStatus');
+    const binanceMessage = document.getElementById('binanceMessage');
+    const connectBtn = document.getElementById('connectBinanceBtn');
     if (data.binanceConnected) {
       binanceDot.classList.add('online');
       binanceStatus.textContent = 'Conectada';
+      binanceMessage.textContent = data.realBalance > 0
+        ? `Saldo BRL: R$ ${Number(data.realBalance || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`
+        : 'Conta conectada. Saldo BRL zerado ou indisponivel.';
+      binanceMessage.className = 'binance-meta ok';
+      connectBtn.textContent = 'Conectada';
     } else {
       binanceDot.classList.remove('online');
       binanceStatus.textContent = data.binanceStatus || 'Desconectada';
+      binanceMessage.textContent = data.binanceLastError || 'Sem conexao com a Binance.';
+      binanceMessage.className = data.binanceLastError ? 'binance-meta error' : 'binance-meta';
+      connectBtn.textContent = data.binanceStatus === 'Conectando...' ? 'Conectando...' : 'Conectar';
     }
     
     // Memória
@@ -754,12 +783,30 @@
   function connectBinance() {
     const key = document.getElementById('apiKey').value;
     const secret = document.getElementById('apiSecret').value;
+    const connectBtn = document.getElementById('connectBinanceBtn');
+    const binanceMessage = document.getElementById('binanceMessage');
     if (!key || !secret) {
       alert('Preencha API Key e Secret');
       return;
     }
+
+    clearTimeout(binanceConnectTimeout);
     send({type: 'CONNECT_BINANCE', apiKey: key, apiSecret: secret});
     document.getElementById('binanceStatus').textContent = 'Conectando...';
+    connectBtn.textContent = 'Conectando...';
+    binanceMessage.textContent = 'Validando chave e permissoes na Binance...';
+    binanceMessage.className = 'binance-meta';
+
+    binanceConnectTimeout = setTimeout(() => {
+      if (document.getElementById('binanceStatus').textContent === 'Conectando...') {
+        document.getElementById('binanceStatus').textContent = 'Desconectada';
+        binanceMessage.textContent = 'Tempo esgotado ao validar Binance. Tente novamente.';
+        binanceMessage.className = 'binance-meta error';
+        connectBtn.textContent = 'Conectar';
+        addLog('✗ Binance: tempo esgotado na validacao', 'loss');
+      }
+    }, 15000);
+
     addLog('🔌 Conectando Binance...', 'trade');
   }
   
