@@ -105,13 +105,17 @@
       min-height: 20px;
       font-size: 13px;
       color: var(--muted);
+      text-align: center;
     }
 
     .status.error { color: var(--danger); }
     .status.denied {
       color: #ff304f;
-      font-size: 16px;
-      font-weight: 700;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      margin-top: 22px;
+      min-height: 42px;
     }
     .status.ok { color: var(--accent); }
 
@@ -157,8 +161,6 @@
     </section>
 
     <p id="status" class="status"></p>
-    <p id="appUrl" class="small"></p>
-    <p class="small">Atualizacoes do painel chegam automaticamente pelo servidor. Nao precisa reinstalar para mudancas online.</p>
   </main>
 
   <script>
@@ -166,8 +168,6 @@
     const setupSection = document.getElementById('setupSection');
     const loginSection = document.getElementById('loginSection');
     const statusEl = document.getElementById('status');
-    const appUrl = document.getElementById('appUrl');
-
     const newPassword = document.getElementById('newPassword');
     const confirmPassword = document.getElementById('confirmPassword');
     const createPasswordBtn = document.getElementById('createPasswordBtn');
@@ -186,7 +186,6 @@
 
     async function init() {
       const state = await window.desktopAuth.getState();
-      appUrl.textContent = 'Painel protegido: ' + state.appUrl;
 
       if (state.hasPassword) {
         subtitle.textContent = 'Digite sua senha para acessar o painel privado.';
