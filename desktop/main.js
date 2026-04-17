@@ -4,6 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const APP_URL = process.env.APP_REMOTE_URL || 'https://ia-trader-bitcoin-production-0c6b.up.railway.app/dashboard';
+const APP_PRIVATE_KEY = process.env.APP_PRIVATE_KEY || 'IA_TRADER_PRIVATE_2026';
 
 let authWindow = null;
 let dashboardWindow = null;
@@ -87,7 +88,13 @@ function createDashboardWindow() {
     return { action: 'deny' };
   });
 
-  dashboardWindow.loadURL(APP_URL);
+  dashboardWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+    details.requestHeaders['X-App-Key'] = APP_PRIVATE_KEY;
+    callback({ requestHeaders: details.requestHeaders });
+  });
+
+  const separator = APP_URL.includes('?') ? '&' : '?';
+  dashboardWindow.loadURL(`${APP_URL}${separator}k=${encodeURIComponent(APP_PRIVATE_KEY)}`);
 
   dashboardWindow.on('closed', () => {
     dashboardWindow = null;

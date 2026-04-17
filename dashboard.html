@@ -325,7 +325,8 @@
 </div>
 
 <script>
-  const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+  const APP_KEY = new URLSearchParams(location.search).get('k') || '';
+  const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${APP_KEY ? `?k=${encodeURIComponent(APP_KEY)}` : ''}`;
   let ws = null;
   let logs = [];
   let chart = null;

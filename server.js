@@ -10,10 +10,50 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5561;
+const PRIVATE_APP_KEY = process.env.PRIVATE_APP_KEY || 'IA_TRADER_PRIVATE_2026';
+const LOCK_BROWSER_ACCESS = process.env.LOCK_BROWSER_ACCESS !== 'false';
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
+
+function getRequestKey(req) {
+  const headerKey = req.headers['x-app-key'];
+  const queryKey = req.query?.k;
+  return headerKey || queryKey || '';
+}
+
+function hasPrivateAccess(req) {
+  if (!LOCK_BROWSER_ACCESS) return true;
+  return getRequestKey(req) === PRIVATE_APP_KEY;
+}
+
+app.use((req, res, next) => {
+  if (!LOCK_BROWSER_ACCESS) return next();
+
+  if (req.path === '/alive') {
+    return next();
+  }
+
+  const protectedPath =
+    req.path === '/' ||
+    req.path === '/dashboard' ||
+    req.path === '/dashboard.html' ||
+    req.path.startsWith('/api');
+
+  if (!protectedPath) {
+    return next();
+  }
+
+  if (!hasPrivateAccess(req)) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Acesso privado: use o app desktop autorizado.'
+    });
+  }
+
+  next();
+});
 
 // ═════════════════════════════════════════════════════════
 // CONFIGURAÇÃO DA IA
@@ -235,7 +275,19 @@ function broadcastUpdate() {
   });
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+  if (LOCK_BROWSER_ACCESS) {
+    const reqUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    const queryKey = reqUrl.searchParams.get('k') || '';
+    const headerKey = req.headers['x-app-key'] || '';
+    const hasAccess = queryKey === PRIVATE_APP_KEY || headerKey === PRIVATE_APP_KEY;
+
+    if (!hasAccess) {
+      ws.close(1008, 'Forbidden');
+      return;
+    }
+  }
+
   console.log('✅ Cliente conectado. Total:', wss.clients.size);
   
   try {
