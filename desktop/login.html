@@ -108,6 +108,11 @@
     }
 
     .status.error { color: var(--danger); }
+    .status.denied {
+      color: #ff304f;
+      font-size: 16px;
+      font-weight: 700;
+    }
     .status.ok { color: var(--accent); }
 
     .small {
@@ -223,7 +228,7 @@
 
       const result = await window.desktopAuth.verifyPassword(password.value);
       if (!result.ok) {
-        setStatus('Senha incorreta.', 'error');
+        setStatus('Acesso negado', 'error denied');
         return;
       }
 

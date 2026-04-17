@@ -189,6 +189,18 @@
       margin-bottom: 8px;
     }
 
+    .btc-now {
+      font-size: 13px;
+      color: #9db3d8;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .btc-now .val {
+      color: #0f0;
+      font-weight: bold;
+    }
+
     .pct-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -368,6 +380,7 @@
     <div class="real-btc-panel">
       <div class="box-title" style="margin-bottom: 6px; border-bottom: 1px solid #294a29;">🪙 BTC REAL (Binance)</div>
       <canvas id="btcRealChart"></canvas>
+      <div class="btc-now">BTC agora: <span class="val" id="btcUsdNow">--</span></div>
       <div class="pct-grid">
         <div class="pct-item">
           <span class="lbl">1 dia</span>
@@ -493,11 +506,25 @@
 
   async function refreshRealBtcData() {
     try {
-      const response = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=120', { cache: 'no-store' });
-      if (!response.ok) return;
-      const klines = await response.json();
+      const [klinesResp, tickerResp] = await Promise.all([
+        fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=120', { cache: 'no-store' }),
+        fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', { cache: 'no-store' })
+      ]);
+
+      if (!klinesResp.ok || !tickerResp.ok) return;
+
+      const klines = await klinesResp.json();
+      const ticker = await tickerResp.json();
       const closes = klines.map(k => parseFloat(k[4])).filter(v => !Number.isNaN(v));
       if (closes.length < 2) return;
+
+      const usdNow = parseFloat(ticker?.price);
+      const btcUsdEl = document.getElementById('btcUsdNow');
+      if (btcUsdEl) {
+        btcUsdEl.textContent = Number.isNaN(usdNow)
+          ? '--'
+          : `$ ${usdNow.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+      }
 
       btcDailyCloses = closes.slice(-90);
       drawRealBtcChart();
@@ -507,6 +534,8 @@
       setPctValue('btcPct1m', calcReturn(closes, 30));
       setPctValue('btcPct3m', calcReturn(closes, 90));
     } catch (e) {
+      const btcUsdEl = document.getElementById('btcUsdNow');
+      if (btcUsdEl) btcUsdEl.textContent = '--';
       setPctValue('btcPct1d', null);
       setPctValue('btcPct7d', null);
       setPctValue('btcPct1m', null);
