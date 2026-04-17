@@ -33,6 +33,20 @@
     }
     .status-indicator.online { background: #0f0; animation: none; }
     @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0.3; } }
+
+    .mini-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      background: #f00;
+      box-shadow: 0 0 8px rgba(255, 0, 0, 0.45);
+    }
+
+    .mini-status-dot.online {
+      background: #0f0;
+      box-shadow: 0 0 8px rgba(0, 255, 0, 0.45);
+    }
     
     .container {
       display: grid;
@@ -305,6 +319,10 @@
     
     <div style="height: 15px;"></div>
     <div class="box-title">🔌 BINANCE</div>
+    <div class="stat-row">
+      <span class="stat-label">Conta:</span>
+      <span class="stat-value" id="binanceStatusWrap"><span class="mini-status-dot" id="binanceDot"></span> <span id="binanceStatus">Desconectada</span></span>
+    </div>
     <input type="text" id="apiKey" placeholder="API Key">
     <input type="password" id="apiSecret" placeholder="API Secret">
     <button onclick="connectBinance()" style="width: 100%; margin-top: 5px;">Conectar</button>
@@ -609,8 +627,12 @@
       
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg.type === 'UPDATE') {
+        if (msg.type === 'UPDATE' || msg.type === 'INIT') {
           updateUI(msg.data);
+        } else if (msg.type === 'BINANCE_CONNECTED') {
+          addLog('🔌 Binance conectada com sucesso', 'trade');
+        } else if (msg.type === 'BINANCE_ERROR') {
+          addLog(`✗ Binance: ${msg.error || 'falha na conexao'}`, 'loss');
         }
       };
       
@@ -641,6 +663,16 @@
     document.getElementById('balance').textContent = 'R$ ' + (data.balance || 10000).toLocaleString('pt-BR', {maximumFractionDigits: 0});
     document.getElementById('totalProfit').textContent = 'R$ ' + (data.totalProfit || 0).toLocaleString('pt-BR', {maximumFractionDigits: 0});
     document.getElementById('btcPrice').textContent = (data.currentPrice || 0).toLocaleString('pt-BR', {maximumFractionDigits: 0});
+
+    const binanceDot = document.getElementById('binanceDot');
+    const binanceStatus = document.getElementById('binanceStatus');
+    if (data.binanceConnected) {
+      binanceDot.classList.add('online');
+      binanceStatus.textContent = 'Conectada';
+    } else {
+      binanceDot.classList.remove('online');
+      binanceStatus.textContent = data.binanceStatus || 'Desconectada';
+    }
     
     // Memória
     const patterns = data.memory?.patterns ? Object.keys(data.memory.patterns).length : 0;
@@ -727,6 +759,7 @@
       return;
     }
     send({type: 'CONNECT_BINANCE', apiKey: key, apiSecret: secret});
+    document.getElementById('binanceStatus').textContent = 'Conectando...';
     addLog('🔌 Conectando Binance...', 'trade');
   }
   

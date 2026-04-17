@@ -6,6 +6,7 @@ const cors = require('cors');
 const WebSocket = require('ws');
 const axios = require('axios');
 const http = require('http');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -92,6 +93,8 @@ let state = {
   mode: process.env.IA_MODE || 'simulation',
   balance: CONFIG.initialBalance,
   realBalance: 0,
+  binanceConnected: false,
+  binanceStatus: 'Desconectada',
   wins: 0,
   losses: 0,
   totalProfit: 0,
@@ -114,17 +117,31 @@ class BinanceAPI {
     this.baseURL = 'https://api.binance.com/api/v3';
   }
 
+  createSignature(params) {
+    return crypto.createHmac('sha256', this.apiSecret).update(params).digest('hex');
+  }
+
+  async signedRequest(method, path, params = {}) {
+    const searchParams = new URLSearchParams({
+      ...params,
+      timestamp: Date.now().toString()
+    });
+    const signature = this.createSignature(searchParams.toString());
+    searchParams.append('signature', signature);
+
+    const response = await axios({
+      method,
+      url: `${this.baseURL}${path}?${searchParams.toString()}`,
+      headers: { 'X-MBX-APIKEY': this.apiKey }
+    });
+
+    return response.data;
+  }
+
   async getBalance() {
-    try {
-      const response = await axios.get(`${this.baseURL}/account`, {
-        headers: { 'X-MBX-APIKEY': this.apiKey }
-      });
-      const brlBalance = response.data.balances.find(b => b.asset === 'BRL');
-      return parseFloat(brlBalance?.free || 0);
-    } catch (e) {
-      console.error('Erro ao buscar saldo:', e.message);
-      return 0;
-    }
+    const account = await this.signedRequest('get', '/account');
+    const brlBalance = account.balances.find(b => b.asset === 'BRL');
+    return parseFloat(brlBalance?.free || 0);
   }
 
   async getCurrentPrice() {
@@ -139,18 +156,14 @@ class BinanceAPI {
 
   async placeOrder(side, quantity, price) {
     try {
-      const response = await axios.post(`${this.baseURL}/order`, {
+      return await this.signedRequest('post', '/order', {
         symbol: CONFIG.symbol,
         side: side.toUpperCase(),
         type: 'LIMIT',
         timeInForce: 'GTC',
         quantity,
-        price,
-        timestamp: Date.now()
-      }, {
-        headers: { 'X-MBX-APIKEY': this.apiKey }
+        price
       });
-      return response.data;
     } catch (e) {
       console.error('Erro ao colocar ordem:', e.message);
       return null;
@@ -328,12 +341,33 @@ wss.on('connection', (ws, req) => {
         broadcastUpdate();
       } else if (cmd.type === 'CONNECT_BINANCE') {
         binanceAPI = new BinanceAPI(cmd.apiKey, cmd.apiSecret);
-        console.log('🔌 Binance conectado');
-        ws.send(JSON.stringify({ type: 'BINANCE_CONNECTED' }));
+        binanceAPI.getBalance().then(bal => {
+          state.realBalance = bal;
+          state.binanceConnected = true;
+          state.binanceStatus = 'Conectada';
+          console.log('🔌 Binance conectada');
+          broadcastUpdate();
+          ws.send(JSON.stringify({ type: 'BINANCE_CONNECTED', balance: bal }));
+        }).catch((error) => {
+          binanceAPI = null;
+          state.realBalance = 0;
+          state.binanceConnected = false;
+          state.binanceStatus = error?.response?.data?.msg || 'Falha na conexao';
+          console.error('Erro ao conectar Binance:', error.message);
+          broadcastUpdate();
+          ws.send(JSON.stringify({ type: 'BINANCE_ERROR', error: state.binanceStatus }));
+        });
       } else if (cmd.type === 'GET_BALANCE') {
         if (binanceAPI) {
           binanceAPI.getBalance().then(bal => {
             state.realBalance = bal;
+            state.binanceConnected = true;
+            state.binanceStatus = 'Conectada';
+            broadcastUpdate();
+          }).catch((error) => {
+            state.realBalance = 0;
+            state.binanceConnected = false;
+            state.binanceStatus = error?.response?.data?.msg || 'Falha na conexao';
             broadcastUpdate();
           });
         }
@@ -393,8 +427,17 @@ app.post('/api/connect', (req, res) => {
   binanceAPI = new BinanceAPI(apiKey, apiSecret);
   binanceAPI.getBalance().then(bal => {
     state.realBalance = bal;
+    state.binanceConnected = true;
+    state.binanceStatus = 'Conectada';
     broadcastUpdate();
     res.json({ ok: true, balance: bal });
+  }).catch((error) => {
+    binanceAPI = null;
+    state.realBalance = 0;
+    state.binanceConnected = false;
+    state.binanceStatus = error?.response?.data?.msg || 'Falha na conexao';
+    broadcastUpdate();
+    res.status(400).json({ ok: false, error: state.binanceStatus });
   });
 });
 
