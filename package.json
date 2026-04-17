@@ -8,7 +8,7 @@
     "desktop:start": "electron desktop/main.js",
     "desktop:dist": "electron-builder --win nsis",
     "desktop:dir": "electron-builder --dir",
-    "desktop:pack": "electron-packager . IA-Trader-Privado --platform=win32 --arch=x64 --out=dist --overwrite --prune=true --electron-version=31.7.7 --ignore=\\\"^/(dist|.git)\\\""
+      "desktop:pack": "electron-packager . IA-Trader-Privado --platform=win32 --arch=x64 --out=dist_build --overwrite --prune=true --electron-version=31.7.7 --ignore=\\\"^/(dist|dist_build|.git)\\\""
   },
   "keywords": [
     "trading",
