@@ -17,6 +17,55 @@ let dashboardWindow = null;
 let updateInterval = null;
 let currentRemoteVersion = '';
 
+function getDashboardUrl() {
+  const separator = APP_URL.includes('?') ? '&' : '?';
+  return `${APP_URL}${separator}k=${encodeURIComponent(APP_PRIVATE_KEY)}`;
+}
+
+function loadErrorPage(errorText) {
+  if (!dashboardWindow || dashboardWindow.isDestroyed()) {
+    return;
+  }
+
+  const html = `<!DOCTYPE html>
+  <html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>IA Trader Privado</title>
+    <style>
+      body { margin:0; font-family: Segoe UI, sans-serif; background:#0b1022; color:#eef3ff; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+      .card { width:min(560px, 92vw); background:#121937; border:1px solid #2e3f82; border-radius:16px; padding:24px; box-shadow:0 20px 40px rgba(0,0,0,.35); }
+      h1 { margin:0 0 10px; font-size:24px; }
+      p { color:#a9b8e8; line-height:1.5; }
+      pre { white-space:pre-wrap; background:#0a0f25; color:#ffb0c1; padding:14px; border-radius:10px; border:1px solid #31407f; }
+      button { margin-top:12px; padding:12px 16px; border:0; border-radius:10px; background:#42d49a; color:#07151b; font-weight:700; cursor:pointer; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Falha ao abrir o painel</h1>
+      <p>O app continua privado, mas o painel remoto nao respondeu corretamente. Tente novamente em alguns segundos.</p>
+      <pre>${String(errorText || 'Erro desconhecido')}</pre>
+      <button onclick="location.reload()">Tentar novamente</button>
+    </main>
+  </body>
+  </html>`;
+
+  dashboardWindow.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(html)}`);
+}
+
+function navigateDashboard() {
+  if (!dashboardWindow || dashboardWindow.isDestroyed()) {
+    return;
+  }
+
+  dashboardWindow.loadURL(getDashboardUrl(), {
+    extraHeaders: `X-App-Key: ${APP_PRIVATE_KEY}\n`
+  }).catch((error) => {
+    loadErrorPage(error.message);
+  });
+}
+
 function getConfigPath() {
   return path.join(app.getPath('userData'), 'secure-config.json');
 }
@@ -82,8 +131,10 @@ function createDashboardWindow() {
   dashboardWindow = new BrowserWindow({
     width: 1280,
     height: 820,
+    show: false,
     autoHideMenuBar: true,
     title: 'IA Trader Privado',
+    backgroundColor: '#0b1022',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -101,9 +152,33 @@ function createDashboardWindow() {
     callback({ requestHeaders: details.requestHeaders });
   });
 
-  const separator = APP_URL.includes('?') ? '&' : '?';
-  dashboardWindow.loadURL(`${APP_URL}${separator}k=${encodeURIComponent(APP_PRIVATE_KEY)}`, {
-    extraHeaders: `X-App-Key: ${APP_PRIVATE_KEY}\n`
+  dashboardWindow.webContents.on('did-finish-load', () => {
+    if (!dashboardWindow || dashboardWindow.isDestroyed()) {
+      return;
+    }
+
+    if (!dashboardWindow.isVisible()) {
+      dashboardWindow.show();
+    }
+
+    if (authWindow && !authWindow.isDestroyed()) {
+      authWindow.close();
+    }
+  });
+
+  dashboardWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    loadErrorPage(`${errorDescription} (${errorCode})\nURL: ${validatedURL}`);
+    if (!dashboardWindow.isVisible()) {
+      dashboardWindow.show();
+    }
+  });
+
+  dashboardWindow.loadFile(path.join(__dirname, 'loading.html'));
+  dashboardWindow.once('ready-to-show', () => {
+    dashboardWindow.show();
+    setTimeout(() => {
+      navigateDashboard();
+    }, 300);
   });
 
   startRemoteUpdateChecks();
@@ -199,9 +274,6 @@ ipcMain.handle('auth:verify-password', async (_event, password) => {
 
 ipcMain.handle('app:open-dashboard', async () => {
   createDashboardWindow();
-  if (authWindow) {
-    authWindow.close();
-  }
   return { ok: true };
 });
 
