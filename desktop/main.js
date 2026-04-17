@@ -5,6 +5,8 @@ const crypto = require('crypto');
 
 const APP_URL = process.env.APP_REMOTE_URL || 'https://ia-trader-bitcoin-production-0c6b.up.railway.app/dashboard';
 const APP_PRIVATE_KEY = process.env.APP_PRIVATE_KEY || 'IA_TRADER_PRIVATE_2026';
+const APP_META_URL = process.env.APP_META_URL || 'https://ia-trader-bitcoin-production-0c6b.up.railway.app/api/app-meta';
+const UPDATE_CHECK_INTERVAL_MS = 60000;
 
 app.commandLine.appendSwitch('disable-http-cache');
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
@@ -12,6 +14,8 @@ app.setPath('userData', path.join(app.getPath('appData'), 'IA-Trader-Privado'));
 
 let authWindow = null;
 let dashboardWindow = null;
+let updateInterval = null;
+let currentRemoteVersion = '';
 
 function getConfigPath() {
   return path.join(app.getPath('userData'), 'secure-config.json');
@@ -102,12 +106,69 @@ function createDashboardWindow() {
     extraHeaders: `X-App-Key: ${APP_PRIVATE_KEY}\n`
   });
 
+  startRemoteUpdateChecks();
+
   dashboardWindow.on('closed', () => {
     dashboardWindow = null;
+    stopRemoteUpdateChecks();
     if (!authWindow) {
       app.quit();
     }
   });
+}
+
+async function fetchRemoteMeta() {
+  const response = await fetch(`${APP_META_URL}?k=${encodeURIComponent(APP_PRIVATE_KEY)}`, {
+    headers: {
+      'X-App-Key': APP_PRIVATE_KEY,
+      'Cache-Control': 'no-cache'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao consultar versao remota: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function checkRemoteUpdates() {
+  if (!dashboardWindow || dashboardWindow.isDestroyed()) {
+    return;
+  }
+
+  try {
+    const meta = await fetchRemoteMeta();
+    if (!meta?.ok || !meta?.version) {
+      return;
+    }
+
+    if (!currentRemoteVersion) {
+      currentRemoteVersion = meta.version;
+      dashboardWindow.setTitle(`IA Trader Privado - ${meta.version}`);
+      return;
+    }
+
+    if (currentRemoteVersion !== meta.version) {
+      currentRemoteVersion = meta.version;
+      dashboardWindow.setTitle(`IA Trader Privado - ${meta.version}`);
+      dashboardWindow.webContents.reloadIgnoringCache();
+    }
+  } catch {
+  }
+}
+
+function startRemoteUpdateChecks() {
+  stopRemoteUpdateChecks();
+  checkRemoteUpdates();
+  updateInterval = setInterval(checkRemoteUpdates, UPDATE_CHECK_INTERVAL_MS);
+}
+
+function stopRemoteUpdateChecks() {
+  if (updateInterval) {
+    clearInterval(updateInterval);
+    updateInterval = null;
+  }
 }
 
 ipcMain.handle('auth:get-state', async () => {

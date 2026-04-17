@@ -12,6 +12,8 @@ const app = express();
 const PORT = process.env.PORT || 5561;
 const PRIVATE_APP_KEY = process.env.PRIVATE_APP_KEY || 'IA_TRADER_PRIVATE_2026';
 const LOCK_BROWSER_ACCESS = process.env.LOCK_BROWSER_ACCESS !== 'false';
+const APP_REMOTE_VERSION = process.env.APP_REMOTE_VERSION || '2026.04.17.1';
+const APP_REMOTE_UPDATED_AT = process.env.APP_REMOTE_UPDATED_AT || new Date().toISOString();
 
 app.use(cors());
 app.use(express.json());
@@ -393,6 +395,15 @@ app.get('/api/health', (req, res) => {
     running: state.running,
     trades: state.trades.length,
     balance: state.balance
+  });
+});
+
+app.get('/api/app-meta', (req, res) => {
+  res.json({
+    ok: true,
+    version: APP_REMOTE_VERSION,
+    updatedAt: APP_REMOTE_UPDATED_AT,
+    appName: 'IA Trader Privado'
   });
 });
 
