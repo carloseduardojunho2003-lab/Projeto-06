@@ -15,6 +15,20 @@ const LOCK_BROWSER_ACCESS = process.env.LOCK_BROWSER_ACCESS !== 'false';
 const APP_REMOTE_VERSION = process.env.APP_REMOTE_VERSION || '2026.04.17.1';
 const APP_REMOTE_UPDATED_AT = process.env.APP_REMOTE_UPDATED_AT || new Date().toISOString();
 
+const IS_CLOUD_RUNTIME = Boolean(
+  process.env.RAILWAY_ENVIRONMENT ||
+  process.env.RENDER ||
+  process.env.K_SERVICE ||
+  process.env.HEROKU
+);
+
+if (!IS_CLOUD_RUNTIME && process.env.ALLOW_LOCAL_MODE !== 'true') {
+  console.error('\n⛔ MODO LOCAL DESATIVADO NESTE PROJETO.');
+  console.error('Este servidor foi travado para rodar apenas online (Railway/Render).');
+  console.error('Para manutencao local temporaria, use: ALLOW_LOCAL_MODE=true\n');
+  process.exit(1);
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
