@@ -1,6 +1,7 @@
 node_modules/
 .env
 .env.local
+.ai-memory/
 .DS_Store
 *.log
 npm-debug.log*
@@ -10,6 +11,7 @@ yarn-error.log*
 .vscode/
 .idea/
 dist/
+dist_build/
 build/
 *.pid
 *.seed

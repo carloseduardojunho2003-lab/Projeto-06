@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>IA Trader — Autônoma 24H</title>
+<title>Privado</title>
 <style>
   :root {
     --bg: #070d16; --panel: rgba(10,20,38,0.92); --line: rgba(80,160,255,0.16);
@@ -18,7 +18,11 @@
     radial-gradient(circle at 85% 80%,rgba(160,107,255,.06),transparent 38%);pointer-events:none}
 
   header{display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:1px solid var(--line);background:rgba(6,12,24,.96);backdrop-filter:blur(10px);position:sticky;top:0;z-index:50}
-  .logo{font-size:1.18rem;font-weight:700;letter-spacing:.06em;background:linear-gradient(135deg,#38aaff,#a06bff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .logo-wrap{display:flex;align-items:center;gap:12px}
+  .logo-mark{width:42px;height:42px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);object-fit:cover;box-shadow:0 10px 24px rgba(0,0,0,.24)}
+  .logo-copy{display:flex;flex-direction:column;gap:2px}
+  .logo-note{font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .logo{font-size:1.18rem;font-weight:700;letter-spacing:.06em;background:linear-gradient(135deg,#38aaff,#a06bff);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
   .status-dot{width:9px;height:9px;border-radius:50%;background:var(--up);box-shadow:0 0 8px var(--up);animation:pulse 1.6s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
   .status-dot.off{background:#444;box-shadow:none;animation:none}
@@ -94,6 +98,11 @@
   .log-price{width:72px}
   .log-pnl{margin-left:auto;font-weight:600}
 
+  .watch-list{padding:14px 18px;display:grid;gap:10px}
+  .watch-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:10px;font-size:.76rem}
+  .watch-label{color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-size:.65rem}
+  .watch-value{font-weight:700;text-align:right;max-width:58%}
+
   /* Confidence meter */
   .conf-ring{display:flex;justify-content:center;padding:14px}
   canvas#confRing{width:120px;height:120px}
@@ -110,10 +119,16 @@
 <body>
 
 <header>
-  <div class="logo">⚡ IA TRADER BITCOIN 🤖</div>
+  <div class="logo-wrap">
+    <img class="logo-mark" src="android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png" alt="Privado">
+    <div class="logo-copy">
+      <span class="logo-note">Painel Privado</span>
+      <div class="logo">PRIVADO</div>
+    </div>
+  </div>
   <div class="status-dot off" id="statusDot"></div>
   <span id="statusTxt" style="font-size:.78rem;color:var(--muted)">Parado</span>
-  <span style="margin-left:20px;font-size:.95rem;letter-spacing:.06em">💡 DADOS REAIS | 🧠 APRENDIZADO AVANÇADO</span>
+  <span style="margin-left:20px;font-size:.95rem;letter-spacing:.06em">💡 DADOS REAIS | 🧠 MEMÓRIA CONTÍNUA | 📊 BTC EM FOCO</span>
   <div class="header-right">
     <button class="btn btn-reset" id="btnReset">Resetar Memória</button>
     <button class="btn btn-start" id="btnStart">▶ Iniciar IA</button>
@@ -128,6 +143,8 @@
     <div class="stat"><div class="stat-lbl">🎯 Win Rate</div><div class="stat-val" id="sWinRate">—</div></div>
     <div class="stat"><div class="stat-lbl">🔁 Operações</div><div class="stat-val" id="sTrades">0</div></div>
     <div class="stat"><div class="stat-lbl">🧠 Aprendizado</div><div class="stat-val accent" id="sLearn">0%</div></div>
+    <div class="stat"><div class="stat-lbl">🪙 BTC 24h</div><div class="stat-val" id="sMarket24h">—</div></div>
+    <div class="stat"><div class="stat-lbl">🔥 Sequência</div><div class="stat-val" id="sStreak">—</div></div>
   </div>
 </div>
 
@@ -152,6 +169,10 @@
         <div class="ind"><div class="ind-name">BB Lower</div><div class="ind-val" id="iBbl">—</div></div>
         <div class="ind"><div class="ind-name">Volume</div><div class="ind-val" id="iVol">—</div></div>
         <div class="ind"><div class="ind-name">Tendência</div><div class="ind-val" id="iTrend">—</div></div>
+        <div class="ind"><div class="ind-name">24h</div><div class="ind-val" id="iDayMove">—</div></div>
+        <div class="ind"><div class="ind-name">VWAP 24h</div><div class="ind-val" id="iVwap">—</div></div>
+        <div class="ind"><div class="ind-name">Range 24h</div><div class="ind-val" id="iDayRange">—</div></div>
+        <div class="ind"><div class="ind-name">Volatil.</div><div class="ind-val" id="iVolatility">—</div></div>
       </div>
     </div>
 
@@ -207,6 +228,17 @@
     </div>
 
     <div class="card">
+      <div class="card-hd">🎯 Monitor Tático</div>
+      <div class="watch-list">
+        <div class="watch-item"><span class="watch-label">Posição</span><span class="watch-value" id="watchPosition">Sem posição</span></div>
+        <div class="watch-item"><span class="watch-label">Última ação</span><span class="watch-value" id="watchLastTrade">—</span></div>
+        <div class="watch-item"><span class="watch-label">Risco mercado</span><span class="watch-value" id="watchRisk">—</span></div>
+        <div class="watch-item"><span class="watch-label">Aprendizado</span><span class="watch-value" id="watchLearning">—</span></div>
+        <div class="watch-item"><span class="watch-label">Adaptação</span><span class="watch-value" id="watchAdaptation">—</span></div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-hd">🔗 Carteira Real (Binance)</div>
       <div style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--line);">
@@ -225,6 +257,7 @@
           <span style="color:var(--muted)">Ordens Abertas:</span>
           <span id="openOrdersCount" style="font-weight: 700;">0</span>
         </div>
+        <div id="binanceError" style="min-height: 44px; font-size: .72rem; line-height: 1.35; color: var(--dn);"></div>
         <button class="btn btn-start" onclick="connectBinance()" id="btnConnect" style="width: 100%; margin-top: 8px; font-size:.75rem;">
           🔐 Conectar Binance
         </button>
@@ -240,6 +273,39 @@
 // ═══════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════
+const DEFAULT_BINANCE_BASE_URL = 'https://api.binance.com/api/v3';
+const DEFAULT_BINANCE_SYMBOL = 'BTCBRL';
+
+const storedBaseUrl = localStorage.getItem('binanceBaseUrl') || '';
+const storedSymbol = localStorage.getItem('binanceSymbol') || '';
+
+// Migra configuracoes antigas da Binance.US para a Binance global ativa no VPS.
+const BINANCE_BASE_URL = (/binance\.com/i.test(storedBaseUrl) && !/binance\.us/i.test(storedBaseUrl))
+  ? storedBaseUrl
+  : DEFAULT_BINANCE_BASE_URL;
+const BINANCE_SYMBOL = BINANCE_BASE_URL.includes('binance.us')
+  ? (storedSymbol || 'BTCUSDT').replace('BTCBRL', 'BTCUSDT')
+  : (storedSymbol || DEFAULT_BINANCE_SYMBOL).replace('BTCUSDT', 'BTCBRL');
+
+localStorage.setItem('binanceBaseUrl', BINANCE_BASE_URL);
+localStorage.setItem('binanceSymbol', BINANCE_SYMBOL);
+const BINANCE_WS_HOST = BINANCE_BASE_URL.includes('binance.us') ? 'stream.binance.us:9443' : 'stream.binance.com:9443';
+const BINANCE_QUOTE_ASSET = BINANCE_SYMBOL.endsWith('USDT') ? 'USDT' : 'BRL';
+const DEFAULT_APP_KEY = 'IA_TRADER_PRIVATE_2026';
+const DEFAULT_REMOTE_API_BASE = 'http://91.99.107.19:5561';
+const APP_KEY = new URLSearchParams(location.search).get('k') || localStorage.getItem('appPrivateKey') || DEFAULT_APP_KEY;
+const API_BASE = (() => {
+  const queryApi = new URLSearchParams(location.search).get('api') || '';
+  if (queryApi) return queryApi.replace(/\/$/, '');
+  const host = (location.hostname || '').toLowerCase();
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '';
+  const isRemoteHost = host === '91.99.107.19';
+  if (location.protocol === 'file:' || isLocalHost) return DEFAULT_REMOTE_API_BASE;
+  if (isRemoteHost) return '';
+  return DEFAULT_REMOTE_API_BASE;
+})();
+const CAN_USE_SERVER_BRIDGE = true;
+
 const CFG = {
   initialBalance: 10000,
   tradeSize: 0.12,       // 12% do saldo por trade (conservador para risco real)
@@ -247,7 +313,7 @@ const CFG = {
   stopLoss: 0.015,       // 1.5% — proteção rigorosa
   takeProfit: 0.035,     // 3.5% — lucro realista
   minConfidence: 0.62,   // 62% — só opera com confiança alta
-  symbol: 'BTCBRL',      // 100% Bitcoin
+  symbol: BINANCE_SYMBOL,      // 100% Bitcoin
   learningRate: 0.35,    // 35% — ALTO! Aprende muito rápido dos erros
   deepLearning: true,    // Ativa análise profunda de padrões
   memoryKey: 'iatrader_bitcoin_advanced',
@@ -266,6 +332,7 @@ let state = {
   position: null,
   candles: [],      // Últimas 120 velas de 1 minuto real
   trades: [],
+  tradeMarkers: [],
   tickTimer: null,
   wins: 0,
   losses: 0,
@@ -278,7 +345,99 @@ let state = {
   lastUpdate: 0,
   consecutiveWins: 0,   // Conta wins seguidas
   consecutiveLosses: 0, // Conta losses seguidas
+  realPriceData: {},
+  marketSnapshot: {},
 };
+
+let openOrdersTimer = null;
+
+function buildApiUrl(path) {
+  const basePath = `${API_BASE || ''}${path}`;
+  if (!APP_KEY) return basePath;
+  return `${basePath}${basePath.includes('?') ? '&' : '?'}k=${encodeURIComponent(APP_KEY)}`;
+}
+
+async function apiRequest(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (APP_KEY) headers['X-App-Key'] = APP_KEY;
+  return fetch(buildApiUrl(path), { ...options, headers });
+}
+
+function setBinanceError(message = '') {
+  $('binanceError').textContent = message || '';
+}
+
+function updateBinanceCard({ connected, balance, asset, modeLabel, error, openOrders }) {
+  $('connStatus').textContent = connected ? '✅ Conectado' : '❌ Offline';
+  $('connStatus').style.color = connected ? 'var(--up)' : 'var(--dn)';
+  $('modeLabel').textContent = modeLabel || (connected ? '🔴 24H REAL BTC' : '📊 Simulação');
+  $('modeLabel').style.color = connected ? 'var(--dn)' : 'var(--warn)';
+  $('realBalance').textContent = connected
+    ? `${Number(balance || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${asset || BINANCE_QUOTE_ASSET}`
+    : '—';
+  $('openOrdersCount').textContent = String(openOrders || 0);
+  $('btnConnect').style.display = connected ? 'none' : '';
+  $('btnDisconnect').style.display = connected ? '' : 'none';
+  setBinanceError(error || '');
+}
+
+async function refreshServerOpenOrders() {
+  if (!CAN_USE_SERVER_BRIDGE) return 0;
+  try {
+    const resp = await apiRequest('/api/binance/open-orders', { cache: 'no-store' });
+    if (!resp.ok) return 0;
+    const data = await resp.json();
+    return Array.isArray(data.orders) ? data.orders.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function syncBinanceFromServer(quiet = false) {
+  if (!CAN_USE_SERVER_BRIDGE) return false;
+
+  try {
+    const resp = await apiRequest('/api/status', { cache: 'no-store' });
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    if (!data.binanceConnected) {
+      if (!quiet && data.binanceLastError) setBinanceError(data.binanceLastError);
+      return false;
+    }
+
+    const orderCount = await refreshServerOpenOrders();
+    trader = new AITraderBinance('', '');
+    trader.useServerBridge = true;
+    state.realMode = true;
+    trader.startPriceStream(BINANCE_SYMBOL);
+    updateBinanceCard({
+      connected: true,
+      balance: data.realBalance,
+      asset: data.realBalanceAsset,
+      modeLabel: '🛰️ Via servidor',
+      openOrders: orderCount,
+      error: ''
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function startOpenOrdersPolling() {
+  if (openOrdersTimer) clearInterval(openOrdersTimer);
+  openOrdersTimer = setInterval(async () => {
+    if (!state.realMode || !trader) return;
+    const orders = await trader.getOpenOrders(BINANCE_SYMBOL);
+    $('openOrdersCount').textContent = Array.isArray(orders) ? orders.length : '0';
+  }, 3000);
+}
+
+function stopOpenOrdersPolling() {
+  if (!openOrdersTimer) return;
+  clearInterval(openOrdersTimer);
+  openOrdersTimer = null;
+}
 
 // ═══════════════════════════════════════════════
 // BINANCE INTEGRATION
@@ -287,14 +446,30 @@ class AITraderBinance {
   constructor(apiKey, apiSecret) {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
-    this.baseURL = 'https://api.binance.com/api/v3';
-    this.symbols = ['BTCBRL', 'ETHBRL', 'BNBBRL'];
+    this.baseURL = BINANCE_BASE_URL;
+    this.symbols = [BINANCE_SYMBOL];
     this.realBalance = {};
     this.openOrders = [];
     this.ws = {};
+    this.useServerBridge = CAN_USE_SERVER_BRIDGE;
   }
 
   async testConnection() {
+    if (this.useServerBridge && this.apiKey && this.apiSecret) {
+      try {
+        const resp = await apiRequest('/api/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: this.apiKey, apiSecret: this.apiSecret })
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) return { ok: false, error: data.error || 'Falha ao conectar' };
+        return { ok: true, data };
+      } catch (e) {
+        return { ok: false, error: e.message };
+      }
+    }
+
     try {
       const resp = await fetch(`${this.baseURL}/account`, {
         headers: { 'X-MBX-APIKEY': this.apiKey }
@@ -309,30 +484,76 @@ class AITraderBinance {
   }
 
   async getBalance() {
+    if (this.useServerBridge) {
+      try {
+        const resp = await apiRequest('/api/status', { cache: 'no-store' });
+        if (!resp.ok) throw new Error('Erro ao buscar saldo');
+        const data = await resp.json();
+        this.realBalance.quote = Number(data.realBalance || 0);
+        this.realBalance.asset = data.realBalanceAsset || BINANCE_QUOTE_ASSET;
+        return this.realBalance;
+      } catch (e) {
+        addLog('[ERRO]', 'Erro ao buscar saldo', e.message);
+        return { quote: 0, asset: BINANCE_QUOTE_ASSET };
+      }
+    }
+
     try {
       const resp = await fetch(`${this.baseURL}/account`, {
         headers: { 'X-MBX-APIKEY': this.apiKey }
       });
       if (!resp.ok) throw new Error('Erro ao buscar saldo');
       const data = await resp.json();
-      const brlBalance = data.balances.find(b => b.asset === 'BRL');
-      this.realBalance.brl = parseFloat(brlBalance?.free || 0);
+      const quoteBalance = data.balances.find(b => b.asset === BINANCE_QUOTE_ASSET);
+      const quoteFree = parseFloat(quoteBalance?.free || 0);
+      const quoteLocked = parseFloat(quoteBalance?.locked || 0);
+      this.realBalance.quote = quoteFree + quoteLocked;
       for (const sym of this.symbols) {
-        const asset = sym.replace('BRL', '');
+        const asset = sym.replace(BINANCE_QUOTE_ASSET, '');
         const bal = data.balances.find(b => b.asset === asset);
-        this.realBalance[asset] = parseFloat(bal?.free || 0);
+        this.realBalance[asset] = parseFloat(bal?.free || 0) + parseFloat(bal?.locked || 0);
+      }
+
+      // Fallback: se nao houver saldo em USDT/BRL, estima pelo ativo base (ex: BTC).
+      const baseAsset = BINANCE_SYMBOL.endsWith(BINANCE_QUOTE_ASSET)
+        ? BINANCE_SYMBOL.slice(0, BINANCE_SYMBOL.length - BINANCE_QUOTE_ASSET.length)
+        : BINANCE_SYMBOL;
+      const baseQty = Number(this.realBalance[baseAsset] || 0);
+      if (this.realBalance.quote <= 0 && baseQty > 0) {
+        const pxResp = await fetch(`${this.baseURL}/ticker/price?symbol=${BINANCE_SYMBOL}`);
+        if (pxResp.ok) {
+          const pxData = await pxResp.json();
+          const px = parseFloat(pxData?.price || 0);
+          if (px > 0) this.realBalance.quote = baseQty * px;
+        }
       }
       return this.realBalance;
     } catch (e) {
       addLog('[ERRO]', 'Erro ao buscar saldo', e.message);
-      return { brl: 0 };
+      return { quote: 0 };
     }
   }
 
   async placeOrder(symbol, side, quantity, price) {
+    if (this.useServerBridge) {
+      try {
+        const resp = await apiRequest('/api/binance/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ side, quantity, price })
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || 'Erro ao abrir ordem');
+        return data.order;
+      } catch (e) {
+        addLog('[ERRO]', `Falha ao abrir ${side} ${symbol}`, e.message);
+        return null;
+      }
+    }
+
     try {
       const body = {
-        symbol: 'BTCBRL',  // Sempre Bitcoin
+        symbol: BINANCE_SYMBOL,
         side: side.toUpperCase(),
         type: 'LIMIT',
         timeInForce: 'GTC',
@@ -357,8 +578,20 @@ class AITraderBinance {
   }
 
   async getOpenOrders(symbol) {
+    if (this.useServerBridge) {
+      try {
+        const resp = await apiRequest('/api/binance/open-orders', { cache: 'no-store' });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || 'Erro ao buscar ordens');
+        this.openOrders = data.orders || [];
+        return this.openOrders;
+      } catch {
+        return [];
+      }
+    }
+
     try {
-      const resp = await fetch(`${this.baseURL}/openOrders?symbol=BTCBRL`, {
+      const resp = await fetch(`${this.baseURL}/openOrders?symbol=${BINANCE_SYMBOL}`, {
         headers: { 'X-MBX-APIKEY': this.apiKey }
       });
       if (!resp.ok) throw new Error('Erro ao buscar ordens');
@@ -370,11 +603,27 @@ class AITraderBinance {
   }
 
   async cancelOrder(symbol, orderId) {
+    if (this.useServerBridge) {
+      try {
+        const resp = await apiRequest('/api/binance/order', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId })
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || 'Erro ao cancelar');
+        return data.result;
+      } catch (e) {
+        addLog('[ERRO]', `Falha ao cancelar ordem ${symbol}`, e.message);
+        return null;
+      }
+    }
+
     try {
       const resp = await fetch(`${this.baseURL}/order`, {
         method: 'DELETE',
         headers: { 'X-MBX-APIKEY': this.apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: 'BTCBRL', orderId, timestamp: Date.now() })
+        body: JSON.stringify({ symbol: BINANCE_SYMBOL, orderId, timestamp: Date.now() })
       });
       if (!resp.ok) throw new Error('Erro ao cancelar');
       return await resp.json();
@@ -385,11 +634,12 @@ class AITraderBinance {
   }
 
   startPriceStream(symbol) {
-    const wsUrl = `wss://stream.binance.com:9443/ws/btcbrl@trade`;  // Sempre BTC
-    if (this.ws['BTCBRL']) this.ws['BTCBRL'].close();
+    if (this.useServerBridge) return;
+    const wsUrl = `wss://${BINANCE_WS_HOST}/ws/${BINANCE_SYMBOL.toLowerCase()}@trade`;
+    if (this.ws[BINANCE_SYMBOL]) this.ws[BINANCE_SYMBOL].close();
     
-    this.ws['BTCBRL'] = new WebSocket(wsUrl);
-    this.ws['BTCBRL'].onmessage = (e) => {
+    this.ws[BINANCE_SYMBOL] = new WebSocket(wsUrl);
+    this.ws[BINANCE_SYMBOL].onmessage = (e) => {
       const data = JSON.parse(e.data);
       const price = parseFloat(data.p);
       state.realPriceData[symbol] = price;
@@ -401,13 +651,13 @@ class AITraderBinance {
         state.candles[state.candles.length - 1].low = Math.min(state.candles[state.candles.length - 1].low, price);
       }
     };
-    this.ws['BTCBRL'].onerror = () => { addLog('[INFO]', 'WebSocket Bitcoin desconectado', ''); };
+    this.ws[BINANCE_SYMBOL].onerror = () => { addLog('[INFO]', 'WebSocket Bitcoin desconectado', ''); };
   }
 
   stopPriceStream(symbol) {
-    if (this.ws['BTCBRL']) {
-      this.ws['BTCBRL'].close();
-      delete this.ws['BTCBRL'];
+    if (this.ws[BINANCE_SYMBOL]) {
+      this.ws[BINANCE_SYMBOL].close();
+      delete this.ws[BINANCE_SYMBOL];
     }
   }
 }
@@ -418,65 +668,49 @@ let trader = null;
 // FUNÇÕES DE CONEXÃO
 // ═══════════════════════════════════════════════
 async function connectBinance() {
-  const key = prompt('🔐 Cole sua API Key (não será salva):');
-  if (!key) return;
-  
-  const secret = prompt('🔐 Cole sua API Secret (não será salva):');
-  if (!secret) return;
-
-  trader = new AITraderBinance(key, secret);
-  const test = await trader.testConnection();
-  
-  if (!test.ok) {
-    alert('❌ Conexão falhou: ' + test.error);
-    trader = null;
+  if (await syncBinanceFromServer(true)) {
+    addLog('[INFO]', 'Usando conexão Binance já ativa no servidor', '');
+    startOpenOrdersPolling();
     return;
   }
 
-  const bal = await trader.getBalance();
-  $('connStatus').textContent = '✅ Conectado';
-  $('connStatus').style.color = 'var(--up)';
-  $('realBalance').textContent = brl(bal.brl);
-  $('modeLabel').textContent = '🔴 24H REAL BTC';
-  $('modeLabel').style.color = 'var(--dn)';
-  $('btnConnect').style.display = 'none';
-  $('btnDisconnect').style.display = '';
-  
-  state.realMode = true;
-  
-  // Inicia stream de preço APENAS para Bitcoin
-  trader.startPriceStream('BTCBRL');
-  
-  // Monitora ordens a cada 3s
-  setInterval(async () => {
-    const orders = await trader.getOpenOrders('BTCBRL');
-    $('openOrdersCount').textContent = orders.length;
-  }, 3000);
-
-  addLog('[INFO]', '✅ Binance conectada! 24H/7 dias ativo', '');
+  setBinanceError('A conexão manual por tela foi desativada para proteger o modo real. Configure a Binance no servidor e sincronize novamente.');
+  alert('Configure BINANCE_API_KEY e BINANCE_API_SECRET no servidor. Esta tela agora apenas consome a conexão protegida já ativa no servidor.');
 }
 
 function disconnectBinance() {
+  stopOpenOrdersPolling();
   if (trader) {
-    trader.stopPriceStream('BTCBRL');
+    trader.stopPriceStream(BINANCE_SYMBOL);
     trader = null;
   }
   state.realMode = false;
-  $('connStatus').textContent = '❌ Offline';
-  $('connStatus').style.color = 'var(--dn)';
-  $('modeLabel').textContent = '📊 Simulação';
-  $('modeLabel').style.color = 'var(--warn)';
-  $('btnConnect').style.display = '';
-  $('btnDisconnect').style.display = 'none';
-  $('realBalance').textContent = '—';
-  $('openOrdersCount').textContent = '0';
+  updateBinanceCard({ connected: false, balance: 0, asset: BINANCE_QUOTE_ASSET, modeLabel: '📊 Simulação', error: '', openOrders: 0 });
   addLog('[INFO]', 'Desconectado da Binance', '');
 }
+
+function defaultMemoryState() {
+  return {
+    patterns: {},
+    totalTrades: 0,
+    accuracy: 0.5,
+    phase: 'warmup',
+    continuousCycles: 0,
+    currentStreak: 0,
+    currentStreakType: 'flat',
+    adaptationScore: 50,
+    lastLearningUpdate: 0,
+    bestPattern: ''
+  };
 }
 
 function loadMemory() {
-  try { return JSON.parse(localStorage.getItem(CFG.memoryKey)) || { patterns: {}, totalTrades: 0, accuracy: 0 }; }
-  catch { return { patterns: {}, totalTrades: 0, accuracy: 0 }; }
+  try {
+    return { ...defaultMemoryState(), ...(JSON.parse(localStorage.getItem(CFG.memoryKey)) || {}) };
+  }
+  catch {
+    return defaultMemoryState();
+  }
 }
 
 function saveMemory() {
@@ -515,11 +749,16 @@ function nextCandle(prev) {
 async function initCandlesFromBinance() {
   try {
     addLog('[INFO]', '📡 Baixando histórico real de Bitcoin...', '');
-    const resp = await fetch(
-      'https://api.binance.com/api/v3/klines?symbol=BTCBRL&interval=1m&limit=100'
-    );
+    const endpoint = CAN_USE_SERVER_BRIDGE
+      ? '/api/market/btc'
+      : `${BINANCE_BASE_URL}/klines?symbol=${BINANCE_SYMBOL}&interval=1m&limit=100`;
+    const resp = CAN_USE_SERVER_BRIDGE
+      ? await apiRequest(endpoint, { cache: 'no-store' })
+      : await fetch(endpoint);
     if (!resp.ok) throw new Error('Falha ao buscar dados');
-    const data = await resp.json();
+    const raw = await resp.json();
+    const data = Array.isArray(raw) ? raw : (raw.klines || []);
+    state.marketSnapshot = Array.isArray(raw) ? {} : (raw.summary || {});
     
     state.candles = data.map(k => ({
       time: k[0],
@@ -548,6 +787,13 @@ function initCandlesSimulated() {
   let c = null;
   for (let i = 0; i < 80; i++) { c = nextCandle(c); state.candles.push(c); }
   state.isRealData = false;
+  state.marketSnapshot = {
+    lastPrice: state.candles[state.candles.length - 1]?.close || 0,
+    priceChangePercent24h: 0,
+    intradayRangePercent: 0,
+    weightedAvgPrice24h: state.candles[state.candles.length - 1]?.close || 0,
+    quoteVolume24h: 0
+  };
 }
 
 // ═══════════════════════════════════════════════
@@ -711,10 +957,14 @@ function learn(patternKey, won, pnlPercent) {
     pat.wins++;
     state.consecutiveWins++;
     state.consecutiveLosses = 0;
+    mem.currentStreak = mem.currentStreakType === 'win' ? mem.currentStreak + 1 : 1;
+    mem.currentStreakType = 'win';
   } else {
     pat.losses++;
     state.consecutiveLosses++;
     state.consecutiveWins = 0;
+    mem.currentStreak = mem.currentStreakType === 'loss' ? mem.currentStreak + 1 : 1;
+    mem.currentStreakType = 'loss';
   }
   
   // Calcula Profit Factor
@@ -730,8 +980,21 @@ function learn(patternKey, won, pnlPercent) {
   const newAcc = (state.wins + state.losses > 0) ? state.wins / (state.wins + state.losses) : 0.5;
   mem.accuracy = mem.accuracy * (1 - CFG.learningRate) + newAcc * CFG.learningRate;
   mem.totalTrades++;
+  mem.continuousCycles = (mem.continuousCycles || 0) + 1;
+  mem.lastLearningUpdate = Date.now();
+  mem.adaptationScore = Math.round(
+    Math.max(20, Math.min(100, mem.accuracy * 100 * 0.75 + Math.min(25, pat.count)))
+  );
+  if (!mem.bestPattern || (mem.patterns[mem.bestPattern]?.confidence || 0) <= pat.confidence) {
+    mem.bestPattern = patternKey;
+  }
+
+  if (mem.totalTrades < 40) mem.phase = 'warmup';
+  else if (mem.totalTrades < 120) mem.phase = 'calibration';
+  else if (mem.totalTrades < 260) mem.phase = 'adaptive';
+  else mem.phase = 'continuous';
   
-  state.learnProgress = Math.min(100, mem.totalTrades / 2);
+  state.learnProgress = Math.min(99, 25 + Math.log10(mem.totalTrades + 1) * 35);
   
   // Auto-cleanup: remove padrões ruins (muito antigos e com W/R < 40%)
   if (pat.count > 8 && (pat.wins / pat.count) < 0.4 && 
@@ -740,6 +1003,16 @@ function learn(patternKey, won, pnlPercent) {
   }
   
   saveMemory();
+}
+
+function recordTradeMarker(type, price, confidence = 0) {
+  state.tradeMarkers.push({
+    type,
+    price,
+    confidence,
+    time: state.candles[state.candles.length - 1]?.time || Date.now()
+  });
+  if (state.tradeMarkers.length > 80) state.tradeMarkers.shift();
 }
 
 // ═══════════════════════════════════════════════
@@ -786,7 +1059,7 @@ function openTrade(price, type, conf) {
     // Modo real — envia ordem para Binance
     const quantity = (size / price).toFixed(8);
     const side = type === 'long' ? 'BUY' : 'SELL';
-    trader.placeOrder('BTCBRL', side, quantity, price).then(order => {
+    trader.placeOrder(BINANCE_SYMBOL, side, quantity, price).then(order => {
       if (order) {
         state.position = { 
           price, 
@@ -794,17 +1067,20 @@ function openTrade(price, type, conf) {
           type, 
           openTime: Date.now(), 
           _patKey: null, 
+          confidence: conf,
           orderId: order.orderId,
           real: true,
-          symbol: 'BTCBRL'
+          symbol: BINANCE_SYMBOL
         };
+        recordTradeMarker('BUY', price, conf);
         addLog(`🔴 ${side} REAL`, price, null);
       }
     });
   } else {
     // Modo simulação
-    state.position = { price, size, type, openTime: Date.now(), _patKey: null, real: false, symbol: 'BTCBRL' };
+    state.position = { price, size, type, openTime: Date.now(), _patKey: null, confidence: conf, real: false, symbol: BINANCE_SYMBOL };
     const side = type === 'long' ? 'BUY' : 'SELL';
+    recordTradeMarker('BUY', price, conf);
     addLog(`📊 ${side} SIM`, price, null);
   }
 }
@@ -828,6 +1104,7 @@ function closeTrade(price, patKey) {
       learn(key, won, pnlPct);
       state.trades.push({ action:'SELL', price, pnl, time: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) });
       const side = pos.type === 'long' ? 'SELL' : 'BUY';
+      recordTradeMarker('SELL', price, pos.confidence || 0);
       addLog(`🔴 ${side} REAL`, price, pnl);
       addMemoryRow(key, pos.price, price, pnl);
       state.position = null;
@@ -842,6 +1119,7 @@ function closeTrade(price, patKey) {
     const pnlPct = (price - pos.price) / pos.price * (pos.type === 'long' ? 1 : -1);
     learn(key, won, pnlPct);
     state.trades.push({ action:'SELL', price, pnl, time: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) });
+    recordTradeMarker('SELL', price, pos.confidence || 0);
     addLog('📊 SELL SIM', price, pnl);
     addMemoryRow(key, pos.price, price, pnl);
     state.position = null;
@@ -898,6 +1176,11 @@ function setBar(id, scoreId, val) {
 function updateUI(ind, signals, memScore, decision) {
   const price = state.candles[state.candles.length-1].close;
   const prevPrice = state.candles[state.candles.length-2]?.close || price;
+  const market24h = Number(state.marketSnapshot?.priceChangePercent24h || 0);
+  const dayRange = state.marketSnapshot?.low24h > 0
+    ? ((Number(state.marketSnapshot.high24h || 0) - Number(state.marketSnapshot.low24h || 0)) / Number(state.marketSnapshot.low24h || 1)) * 100
+    : Number(state.marketSnapshot?.intradayRangePercent || 0);
+  const volatility = Number(state.marketSnapshot?.intradayRangePercent || 0);
 
   $('currentPriceTag').textContent = brl(price);
   $('currentPriceTag').style.color = price>=prevPrice?'var(--up)':'var(--dn)';
@@ -916,6 +1199,11 @@ function updateUI(ind, signals, memScore, decision) {
   const trendEl = $('iTrend');
   trendEl.textContent = ind.trend21;
   trendEl.style.color = ind.trend21==='Alta'?'var(--up)':'var(--dn)';
+  $('iDayMove').textContent = formatPct(market24h);
+  $('iDayMove').style.color = market24h >= 0 ? 'var(--up)' : 'var(--dn)';
+  $('iVwap').textContent = brl(state.marketSnapshot?.weightedAvgPrice24h || price);
+  $('iDayRange').textContent = formatPct(dayRange);
+  $('iVolatility').textContent = formatPct(volatility);
 
   // Brain bars
   setBar('bRsi','bRsiS', signals.rsi);
@@ -947,16 +1235,37 @@ function updateUI(ind, signals, memScore, decision) {
   $('sWinRate').className = 'stat-val '+(parseFloat(wr)>=50?'up':'dn');
   $('sTrades').textContent = winsLosses;
   $('sLearn').textContent = Math.round(state.learnProgress)+'%';
+  $('sMarket24h').textContent = formatPct(market24h);
+  $('sMarket24h').className = 'stat-val ' + (market24h >= 0 ? 'up' : 'dn');
+  const streakCount = Number(state.memory.currentStreak || 0);
+  const streakType = state.memory.currentStreakType || 'flat';
+  $('sStreak').textContent = streakCount ? `${streakType === 'win' ? 'WIN' : 'LOSS'} x${streakCount}` : '—';
+  $('sStreak').className = 'stat-val ' + (streakType === 'loss' ? 'dn' : 'up');
 
   // Learn bar
   const acc = Math.round((state.memory.accuracy||0.5)*100);
   $('learnFill').style.width = acc+'%';
-  $('learnTag').textContent = Object.keys(state.memory.patterns).length+' padrões';
+  $('learnTag').textContent = `${Object.keys(state.memory.patterns).length} padrões · ${state.memory.phase || 'warmup'}`;
   $('confTag').textContent = (decision.confidence*100).toFixed(0)+'%';
+
+  const lastMarker = state.tradeMarkers[state.tradeMarkers.length - 1];
+  const riskLevel = volatility > 2.5 ? 'Alto' : volatility > 1.2 ? 'Médio' : 'Baixo';
+  $('watchPosition').textContent = state.position ? `Aberta @ ${brl(state.position.price)}` : 'Sem posição';
+  $('watchLastTrade').textContent = lastMarker ? `${lastMarker.type} @ ${brl(lastMarker.price)}` : '—';
+  $('watchRisk').textContent = `${riskLevel} · ${formatPct(volatility)}`;
+  $('watchLearning').textContent = `${state.memory.phase || 'warmup'} · ciclo ${state.memory.continuousCycles || 0}`;
+  $('watchAdaptation').textContent = `${Math.round(state.memory.adaptationScore || 50)}%`;
 }
 
 function brl(v) {
   return 'R$ '+Math.round(v).toLocaleString('pt-BR');
+}
+
+function formatPct(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  const numeric = Number(value);
+  const signal = numeric > 0 ? '+' : '';
+  return `${signal}${numeric.toFixed(2)}%`;
 }
 
 // ═══════════════════════════════════════════════
@@ -1052,6 +1361,24 @@ function drawChart() {
     ctx.fillRect(x-body/2, by, body, bh);
   }
 
+  const visibleStart = visible[0].time;
+  const visibleEnd = visible[visible.length - 1].time;
+  const markers = state.tradeMarkers.filter(marker => marker.time >= visibleStart && marker.time <= visibleEnd);
+  markers.forEach((marker) => {
+    const candleIndex = visible.findIndex(candle => candle.time >= marker.time);
+    const idx = candleIndex === -1 ? visible.length - 1 : candleIndex;
+    const x = padL + (idx + 0.5) * cw2;
+    const y = toY(marker.price);
+
+    ctx.fillStyle = marker.type === 'BUY' ? 'rgba(34,232,122,0.95)' : 'rgba(240,79,94,0.95)';
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = 'bold 9px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText(marker.type === 'BUY' ? 'B' : 'S', x, y - 9);
+  });
+
   // Marca posição atual
   if (state.position) {
     const py = toY(state.position.price);
@@ -1117,9 +1444,9 @@ $('btnStop').onclick = () => {
 $('btnReset').onclick = () => {
   if (!confirm('Apagar toda a memória aprendida?')) return;
   localStorage.removeItem(CFG.memoryKey);
-  state.memory = { patterns:{}, totalTrades:0, accuracy:0 };
+  state.memory = defaultMemoryState();
   state.wins=0; state.losses=0; state.totalProfit=0;
-  state.balance=CFG.initialBalance; state.position=null; state.learnProgress=0;
+  state.balance=CFG.initialBalance; state.position=null; state.learnProgress=0; state.tradeMarkers=[];
   $('memoryWrap').innerHTML='<div data-ph style="color:var(--muted);font-size:.72rem;padding:4px">Nenhum padrão aprendido ainda.</div>';
   $('tradeLog').innerHTML='<div style="color:var(--muted);font-size:.74rem;padding:8px 0">Aguardando a IA iniciar...</div>';
   alert('Memória resetada!');
@@ -1128,9 +1455,12 @@ $('btnReset').onclick = () => {
 // Carrega dados reais ao abrir
 window.addEventListener('load', async () => {
   try {
+    $('assetTag').textContent = BINANCE_SYMBOL.replace('USDT', '/USDT').replace('BRL', '/BRL');
     addLog('[⏳]', 'Carregando dados de Bitcoin...', '');
     await initCandlesFromBinance();
     drawChart();
+    await syncBinanceFromServer(true);
+    if (state.realMode) startOpenOrdersPolling();
     addLog('[✅]', 'Bitcoin carregado! Pronto para teste.', '');
   } catch (e) {
     addLog('[❌]', 'Erro ao carregar', e.message);

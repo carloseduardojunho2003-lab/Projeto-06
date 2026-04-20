@@ -1,0 +1,16 @@
+{
+  "appId": "com.iatrader.bitcoin",
+  "appName": "IA Trader",
+  "webDir": "mobile-web",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#0a0e27"
+  },
+  "server": {
+    "cleartext": true,
+    "allowNavigation": [
+      "91.99.107.19"
+    ]
+  }
+}

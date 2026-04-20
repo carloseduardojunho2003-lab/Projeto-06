@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Privado">
+  <defs>
+    <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="16" stroke="#dfe7f4" stroke-width="1" opacity="0.8"/>
+    </pattern>
+  </defs>
+  <circle cx="48" cy="48" r="46" fill="#ffffff" stroke="#0b0d14" stroke-width="4"/>
+  <circle cx="48" cy="48" r="44" fill="url(#grid)" opacity="0.8"/>
+  <g fill="#63b9ff">
+    <rect x="28" y="18" width="12" height="52" rx="4" transform="rotate(-45 34 44)"/>
+    <rect x="44" y="18" width="12" height="52" rx="4" transform="rotate(-45 50 44)"/>
+  </g>
+</svg>

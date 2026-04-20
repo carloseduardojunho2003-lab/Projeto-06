@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0e27">
+  <title>IA Trader</title>
+  <meta name="theme-color" content="#0a0e27" />
+  <script src="mobile-bridge.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --green: #00ff88;
+      --red: #ff4455;
+      --blue: #4af;
+      --bg: #0a0e27;
+      --card: #141830;
+      --border: #1e2548;
+      --text: #cdd6f4;
+      --sub: #6c7aaa;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* ── HEADER ─────────────────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      flex-shrink: 0;
+    }
+    .header-title { font-size: 16px; font-weight: 700; }
+    .header-sub { font-size: 11px; color: var(--sub); }
+
+    .ws-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--red);
+      flex-shrink: 0;
+    }
+    .ws-dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+    /* ── TABS ───────────────────────────── */
+    .tabs {
+      display: flex;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+
+    .tab {
+      flex: 1;
+      min-width: 70px;
+      padding: 10px 6px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--sub);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .tab.active { color: var(--green); border-bottom-color: var(--green); }
+    .tab-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+
+    /* ── CONTENT ────────────────────────── */
+    .page { display: none; padding: 14px; }
+    .page.active { display: block; }
+
+    /* ── CARD ───────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      margin-bottom: 12px;
+    }
+
+    /* ── BIG STAT ───────────────────────── */
+    .big-stat {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--green);
+      margin: 4px 0 8px;
+      letter-spacing: -1px;
+    }
+    .big-stat.danger { color: var(--red); }
+    .big-stat.neutral { color: var(--blue); }
+
+    /* ── STAT GRID ──────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-item {
+      background: #0d1126;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-val { font-size: 18px; font-weight: 700; color: var(--green); }
+    .stat-val.danger { color: var(--red); }
+    .stat-val.blue { color: var(--blue); }
+    .stat-lbl { font-size: 10px; color: var(--sub); margin-top: 3px; }
+
+    /* ── STATUS ROW ─────────────────────── */
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid #1a1f40;
+      font-size: 13px;
+    }
+    .status-row:last-child { border-bottom: none; }
+    .status-key { color: var(--sub); }
+    .status-val { font-weight: 600; }
+    .status-val.green { color: var(--green); }
+    .status-val.red { color: var(--red); }
+    .status-val.blue { color: var(--blue); }
+
+    .position-empty {
+      color: var(--sub);
+      font-size: 12px;
+      text-align: center;
+      padding: 8px 0 2px;
+    }
+    .position-summary {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .position-pnl {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -.5px;
+    }
+    .position-pnl.positive { color: var(--green); }
+    .position-pnl.negative { color: var(--red); }
+    .position-pnl.neutral { color: var(--blue); }
+    .position-direction {
+      font-size: 12px;
+      color: var(--sub);
+      text-align: right;
+      line-height: 1.4;
+    }
+    .position-direction.positive { color: var(--green); }
+    .position-direction.negative { color: var(--red); }
+    .position-direction.neutral { color: var(--blue); }
+    .position-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .position-metric {
+      background: #0d1126;
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 62px;
+    }
+    .position-metric-label {
+      font-size: 10px;
+      color: var(--sub);
+      margin-bottom: 4px;
+    }
+    .position-metric-value {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .position-metric-value.positive { color: var(--green); }
+    .position-metric-value.negative { color: var(--red); }
+    .position-metric-value.neutral { color: var(--blue); }
+    .position-note {
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--sub);
+      line-height: 1.45;
+    }
+    .position-range {
+      margin-top: 12px;
+    }
+    .position-range-track {
+      position: relative;
+      height: 12px;
+      border-radius: 999px;
+      border: 1px solid #1a1f40;
+      background: linear-gradient(90deg, rgba(255,68,85,.85) 0%, rgba(255,200,0,.78) 48%, rgba(0,255,136,.82) 100%);
+      overflow: hidden;
+    }
+    .position-range-track::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0));
+      pointer-events: none;
+    }
+    .position-entry-marker,
+    .position-current-marker {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .position-entry-marker {
+      width: 3px;
+      height: 18px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.78);
+      box-shadow: 0 0 10px rgba(255,255,255,.18);
+    }
+    .position-current-marker {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      background: #0a0e27;
+      box-shadow: 0 0 0 3px rgba(255,255,255,.16);
+    }
+    .position-range-labels {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-top: 7px;
+      font-size: 10px;
+      color: var(--sub);
+    }
+    .position-range-labels span:nth-child(2) {
+      text-align: center;
+      flex: 1;
+    }
+
+    /* ── BADGE ──────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-green { background: rgba(0,255,136,.15); color: var(--green); }
+    .badge-red { background: rgba(255,68,85,.15); color: var(--red); }
+    .badge-blue { background: rgba(68,170,255,.15); color: var(--blue); }
+    .badge-yellow { background: rgba(255,200,0,.15); color: #ffc800; }
+
+    /* ── BUTTONS ────────────────────────── */
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: .3px;
+    }
+    .btn:active { transform: scale(.97); opacity: .85; }
+    .btn-green { background: var(--green); color: #020d0a; }
+    .btn-red { background: var(--red); color: #fff; }
+    .btn-blue { background: var(--blue); color: #020d0a; }
+    .btn-gray { background: #1e2548; color: var(--text); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── MODE TOGGLE ────────────────────── */
+    .mode-toggle {
+      display: flex;
+      background: #0d1126;
+      border-radius: 10px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--sub);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .mode-btn.active { background: var(--card); color: var(--text); }
+
+    /* ── LOG FEED ───────────────────────── */
+    .log-feed {
+      max-height: 340px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .log-item {
+      padding: 8px 0;
+      border-bottom: 1px solid #131729;
+      font-size: 12px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .log-item:last-child { border-bottom: none; }
+    .log-time { color: var(--sub); font-size: 10px; min-width: 45px; margin-top: 1px; }
+    .log-msg { flex: 1; }
+    .log-win { color: var(--green); }
+    .log-loss { color: var(--red); }
+    .log-trade { color: var(--blue); }
+    .log-info { color: var(--text); }
+    .log-warn { color: #ffc800; }
+
+    /* ── TRADES LIST ────────────────────── */
+    .trade-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background: #0d1126;
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+    .trade-side { font-weight: 800; font-size: 13px; }
+    .trade-side.buy { color: var(--green); }
+    .trade-side.sell { color: var(--red); }
+    .trade-info { font-size: 11px; color: var(--sub); margin-top: 2px; }
+    .trade-pnl { font-weight: 700; font-size: 14px; }
+    .trade-pnl.pos { color: var(--green); }
+    .trade-pnl.neg { color: var(--red); }
+
+    /* ── UPDATE SECTION ─────────────────── */
+    .update-card {
+      background: linear-gradient(135deg, #0d1429, #101e3a);
+      border: 1px solid #2040a0;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .update-ver { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+    .update-date { font-size: 11px; color: var(--sub); }
+    .update-status { 
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px; background: #0a0f25; border-radius: 10px;
+      margin: 14px 0; font-size: 13px;
+    }
+    .update-progress {
+      display: none;
+      height: 4px; background: #1a1f40; border-radius: 4px; margin: 10px 0;
+      overflow: hidden;
+    }
+    .update-progress-bar {
+      height: 100%; background: var(--blue);
+      border-radius: 4px; width: 0%;
+      transition: width .4s ease;
+      animation: progress-pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes progress-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .6; }
+    }
+    .update-log {
+      max-height: 150px; overflow-y: auto;
+      background: #060914; border-radius: 8px;
+      padding: 10px; font-family: monospace;
+      font-size: 11px; color: #7aff9a;
+      display: none; margin-top: 10px;
+    }
+    .update-caption {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.45;
+      margin: 12px 0 6px;
+    }
+    .update-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 14px 0 6px;
+    }
+    .update-meta-item {
+      background: rgba(10, 15, 37, .75);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .update-meta-label {
+      display: block;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--sub);
+      margin-bottom: 4px;
+    }
+    .update-meta-value {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .update-changes {
+      display: none;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #0a0f25;
+      border: 1px solid rgba(255,255,255,.05);
+    }
+    .update-changes-title {
+      font-size: 10px;
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      margin-bottom: 8px;
+    }
+    .update-changes-list {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .update-changes-list div + div {
+      margin-top: 6px;
+    }
+
+    /* ── BINANCE INDICATOR ──────────────── */
+    .binance-indicator {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px; background: #0d1126; border-radius: 12px;
+    }
+    .binance-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--red); flex-shrink: 0;
+    }
+    .binance-dot.online { background: var(--green); box-shadow: 0 0 10px var(--green); }
+    .binance-info { flex: 1; }
+    .binance-label { font-size: 13px; font-weight: 600; }
+    .binance-sub { font-size: 11px; color: var(--sub); margin-top: 2px; }
+
+    /* ── CHART MINI ─────────────────────── */
+    canvas { width: 100% !important; border-radius: 8px; }
+
+    /* ── BOTTOM NAV ─────────────────────── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      z-index: 100;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .nav-item {
+      flex: 1;
+      padding: 10px 6px;
+      text-align: center;
+      cursor: pointer;
+      color: var(--sub);
+      transition: color .2s;
+    }
+    .nav-item.active { color: var(--green); }
+    .nav-icon { font-size: 20px; display: block; }
+    .nav-label { font-size: 9px; margin-top: 3px; }
+
+    /* ── TOAST ──────────────────────────── */
+    #toast {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+      background: #1e2548; color: var(--text);
+      padding: 10px 20px; border-radius: 20px;
+      font-size: 13px; font-weight: 600;
+      opacity: 0; pointer-events: none;
+      transition: opacity .3s;
+      z-index: 200; white-space: nowrap;
+      border: 1px solid var(--border);
+    }
+    #toast.show { opacity: 1; }
+
+    /* Scrollbar mobile */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <img class="header-logo" src="app-photo.svg" alt="Privado">
+    <div>
+      <div class="header-title">IA Trader</div>
+      <div class="header-sub" id="headerStatus">Conectando...</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span id="wsDot" class="ws-dot"></span>
+  </div>
+</header>
+
+<!-- TABS (top) -->
+<nav class="tabs" role="tablist">
+  <div class="tab active" onclick="switchTab(0)" id="tab0">
+    <span class="tab-icon">📊</span>Painel
+  </div>
+  <div class="tab" onclick="switchTab(1)" id="tab1">
+    <span class="tab-icon">🤖</span>IA
+  </div>
+  <div class="tab" onclick="switchTab(2)" id="tab2">
+    <span class="tab-icon">💼</span>Trades
+  </div>
+  <div class="tab" onclick="switchTab(3)" id="tab3">
+    <span class="tab-icon">📋</span>Logs
+  </div>
+  <div class="tab" onclick="switchTab(4)" id="tab4">
+    <span class="tab-icon">⚙️</span>App
+  </div>
+</nav>
+
+<!-- ════════════════ PAGE 0: PAINEL ════════════════ -->
+<div class="page active" id="page0">
+
+  <div class="card">
+    <div class="card-title">💰 Saldo</div>
+    <div class="big-stat" id="m-balance">R$ 10.000</div>
+    <div class="stat-grid">
+      <div class="stat-item">
+        <div class="stat-val" id="m-profit">R$ 0</div>
+        <div class="stat-lbl">Lucro Total</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val blue" id="m-btc">-</div>
+        <div class="stat-lbl">BTC/BRL</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" id="m-wins">0</div>
+        <div class="stat-lbl">Vitórias</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val danger" id="m-losses">0</div>
+        <div class="stat-lbl">Derrotas</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📈 Performance</div>
+    <canvas id="miniChart" height="120"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔌 Binance</div>
+    <div class="binance-indicator">
+      <div class="binance-dot" id="m-binanceDot"></div>
+      <div class="binance-info">
+        <div class="binance-label" id="m-binanceStatus">Verificando...</div>
+        <div class="binance-sub" id="m-binanceSub">Auto-conectado via .env</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 Status</div>
+    <div class="status-row">
+      <span class="status-key">IA Status</span>
+      <span class="status-val" id="m-iaStatus">–</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Modo</span>
+      <span class="status-val blue" id="m-modo">–</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Win Rate</span>
+      <span class="status-val green" id="m-winRate">0%</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Operações</span>
+      <span class="status-val" id="m-trades">0</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Online há</span>
+      <span class="status-val" id="m-uptime">-</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📌 Operação Aberta</div>
+    <div id="m-positionEmpty" class="position-empty">Sem operação aberta no momento.</div>
+    <div id="m-positionWrap" style="display:none;">
+      <div class="position-summary">
+        <div>
+          <div class="position-pnl neutral" id="m-positionPnl">R$ 0</div>
+          <div class="position-direction" id="m-positionMeta">Aguardando posição</div>
+        </div>
+        <div class="position-direction neutral" id="m-positionPct">0,00%</div>
+      </div>
+      <div class="position-grid">
+        <div class="position-metric">
+          <div class="position-metric-label">Entrada</div>
+          <div class="position-metric-value" id="m-positionEntry">-</div>
+        </div>
+        <div class="position-metric">
+          <div class="position-metric-label">Preço Atual</div>
+          <div class="position-metric-value" id="m-positionCurrent">-</div>
+        </div>
+        <div class="position-metric">
+          <div class="position-metric-label">Valor Atual</div>
+          <div class="position-metric-value" id="m-positionValue">-</div>
+        </div>
+        <div class="position-metric">
+          <div class="position-metric-label">Quantidade</div>
+          <div class="position-metric-value neutral" id="m-positionQty">-</div>
+        </div>
+        <div class="position-metric">
+          <div class="position-metric-label">Stop</div>
+          <div class="position-metric-value negative" id="m-positionStop">-</div>
+        </div>
+        <div class="position-metric">
+          <div class="position-metric-label">Alvo</div>
+          <div class="position-metric-value positive" id="m-positionTake">-</div>
+        </div>
+      </div>
+      <div class="position-note" id="m-positionNote">Investido: -</div>
+      <div class="position-range">
+        <div class="position-range-track">
+          <div class="position-entry-marker" id="m-positionEntryMarker"></div>
+          <div class="position-current-marker" id="m-positionCurrentMarker"></div>
+        </div>
+        <div class="position-range-labels">
+          <span id="m-positionStopPct">Stop</span>
+          <span id="m-positionRangeCaption">Atual entre stop e alvo</span>
+          <span id="m-positionTakePct">Alvo</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════ PAGE 1: IA CONTROLE ════════════════ -->
+<div class="page" id="page1">
+
+  <div class="card">
+    <div class="card-title">🎮 Controle</div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" onclick="setMode('simulation', this)">🧪 Simulação</button>
+      <button class="mode-btn" onclick="setMode('real', this)">💰 Real</button>
+    </div>
+    <button class="btn btn-green" onclick="startIA()" id="startBtn">▶ Iniciar IA</button>
+    <button class="btn btn-blue" onclick="adoptPosition()" id="adoptPositionBtn">🧷 Adotar Posição Aberta</button>
+    <button class="btn btn-red" onclick="stopIA()" id="stopBtn">⏹ Parar IA</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🧠 Memória da IA</div>
+    <div class="status-row">
+      <span class="status-key">Padrões Aprendidos</span>
+      <span class="status-val green" id="m-patterns">0</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Acurácia</span>
+      <span class="status-val" id="m-accuracy">50%</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Fase</span>
+      <span class="status-val blue" id="m-phase">inicializando</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Total Decisões</span>
+      <span class="status-val" id="m-decisions">0</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚙️ Configuração Ativa</div>
+    <div class="status-row">
+      <span class="status-key">Tamanho Operação</span>
+      <span class="status-val">12%</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Stop Loss</span>
+      <span class="status-val red">1.5%</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Take Profit</span>
+      <span class="status-val green">3.5%</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Confiança Mínima</span>
+      <span class="status-val blue">62%</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Par</span>
+      <span class="status-val">BTC/BRL</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════ PAGE 2: TRADES ════════════════ -->
+<div class="page" id="page2">
+
+  <div class="card">
+    <div class="card-title">📊 Resumo</div>
+    <div class="stat-grid">
+      <div class="stat-item">
+        <div class="stat-val" id="m-avgProfit">R$ 0</div>
+        <div class="stat-lbl">Lucro Médio</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" id="m-lastTrade">–</div>
+        <div class="stat-lbl">Última Op.</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val green" id="m-maxWin">R$ 0</div>
+        <div class="stat-lbl">Maior Ganho</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val danger" id="m-maxLoss">R$ 0</div>
+        <div class="stat-lbl">Maior Perda</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Histórico</div>
+    <div id="m-tradesList">
+      <div style="text-align:center;color:var(--sub);padding:30px;font-size:13px;">
+        Nenhuma operação ainda
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════ PAGE 3: LOGS ════════════════ -->
+<div class="page" id="page3">
+
+  <div class="card" style="padding:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div class="card-title" style="margin:0;">📋 Logs ao Vivo</div>
+      <button class="btn btn-gray" style="width:auto;padding:6px 12px;margin:0;font-size:12px;" onclick="clearLogs()">🗑 Limpar</button>
+    </div>
+    <div class="log-feed" id="m-logFeed">
+      <div class="log-item">
+        <span class="log-time">agora</span>
+        <span class="log-msg log-info">📱 Dashboard mobile iniciado...</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════ PAGE 4: APP / UPDATE ════════════════ -->
+<div class="page" id="page4">
+
+  <div class="update-card">
+    <div style="font-size:18px;font-weight:800;margin-bottom:6px;">🔄 Atualizar App</div>
+    <div class="update-ver">Versão atual: <strong id="appVersion">–</strong></div>
+    <div class="update-date">Última atualização: <span id="appUpdatedAt">–</span></div>
+
+    <div class="update-status" id="updateStatus">
+      <span id="updateStatusIcon">💡</span>
+      <span id="updateStatusText">Toque em "Buscar Atualização" para verificar</span>
+    </div>
+
+    <div class="update-meta-grid">
+      <div class="update-meta-item">
+        <span class="update-meta-label">Última checagem</span>
+        <span class="update-meta-value" id="updateLastChecked">Nunca</span>
+      </div>
+      <div class="update-meta-item">
+        <span class="update-meta-label">Alvo</span>
+        <span class="update-meta-value" id="updateScope">Servidor remoto</span>
+      </div>
+    </div>
+
+    <div class="update-changes" id="updateChanges">
+      <div class="update-changes-title">Mudanças encontradas</div>
+      <div class="update-changes-list" id="updateChangesList"></div>
+    </div>
+
+    <div class="update-progress" id="updateProgress">
+      <div class="update-progress-bar" id="updateProgressBar"></div>
+    </div>
+
+    <div class="update-log" id="updateLog"></div>
+
+    <div class="update-caption">
+      Atualiza o painel conectado ao servidor, acompanha o reinício e recarrega a interface quando a nova versão volta online.
+      No APK remoto desta versao, mudancas visuais e ajustes web chegam direto do servidor. Novo APK so e necessario para recursos nativos.
+    </div>
+
+    <button class="btn btn-blue" onclick="checkUpdate()" id="checkUpdateBtn">🔍 Buscar Atualização</button>
+    <button class="btn btn-green" onclick="doUpdate()" id="doUpdateBtn" style="display:none;">⬇️ Instalar Agora</button>
+    <button class="btn btn-gray" onclick="forceUpdate()" id="forceUpdateBtn">🔁 Forçar Atualização (git pull)</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📡 Conexão</div>
+    <div class="status-row">
+      <span class="status-key">Servidor</span>
+      <span class="status-val green" id="app-server">–</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">WebSocket</span>
+      <span class="status-val" id="app-ws">–</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Versão Servidor</span>
+      <span class="status-val blue" id="app-ver">–</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Ambiente</span>
+      <span class="status-val" id="app-env">–</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔗 Acesso Rápido</div>
+    <button class="btn btn-outline" onclick="openDesktop()">🖥️ Abrir Dashboard Desktop</button>
+    <button class="btn btn-outline" onclick="location.reload()">🔃 Recarregar Página</button>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" role="navigation">
+  <div class="nav-item active" onclick="switchTab(0)" id="nav0">
+    <span class="nav-icon">📊</span>
+    <div class="nav-label">Painel</div>
+  </div>
+  <div class="nav-item" onclick="switchTab(1)" id="nav1">
+    <span class="nav-icon">🤖</span>
+    <div class="nav-label">IA</div>
+  </div>
+  <div class="nav-item" onclick="switchTab(2)" id="nav2">
+    <span class="nav-icon">💼</span>
+    <div class="nav-label">Trades</div>
+  </div>
+  <div class="nav-item" onclick="switchTab(3)" id="nav3">
+    <span class="nav-icon">📋</span>
+    <div class="nav-label">Logs</div>
+  </div>
+  <div class="nav-item" onclick="switchTab(4)" id="nav4">
+    <span class="nav-icon">⚙️</span>
+    <div class="nav-label">App</div>
+  </div>
+</nav>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIGURAÇÃO
+// ═══════════════════════════════════════════════════════
+const SERVER = "http://91.99.107.19:5561"; // APK nativo — conecta ao VPS
+
+const DEFAULT_APP_KEY = 'IA_TRADER_PRIVATE_2026';
+const APP_KEY_PARAM = new URLSearchParams(location.search).get('k') || '';
+const APP_KEY_STORAGE = localStorage.getItem('app_key') || '';
+let APP_KEY = APP_KEY_PARAM || APP_KEY_STORAGE || DEFAULT_APP_KEY;
+
+if (!APP_KEY_PARAM && APP_KEY_STORAGE && APP_KEY_STORAGE !== DEFAULT_APP_KEY) {
+  APP_KEY = DEFAULT_APP_KEY;
+  localStorage.setItem('app_key', DEFAULT_APP_KEY);
+}
+
+if (APP_KEY_PARAM) {
+  localStorage.setItem('app_key', APP_KEY_PARAM);
+}
+
+const WS_URL = `ws://91.99.107.19:5561${APP_KEY ? `?k=${encodeURIComponent(APP_KEY)}` : ''}`; // APK fallback local
+
+function withAppKey(url) {
+  if (!APP_KEY) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}k=${encodeURIComponent(APP_KEY)}`;
+}
+
+function secureFetch(url, options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+    ...(APP_KEY ? { 'X-App-Key': APP_KEY } : {})
+  };
+  return fetch(withAppKey(url), { ...options, headers });
+}
+
+// ═══════════════════════════════════════════════════════
+// ESTADO
+// ═══════════════════════════════════════════════════════
+let ws = null;
+let logs = [];
+let performanceData = [];
+let latestData = null;
+let updateAvailable = false;
+let latestVersion = null;
+let currentPage = 0;
+let pendingUpdate = null;
+let lastTradeLogKey = '';
+let lastUpdateCheckAt = 0;
+let updateInFlight = false;
+const MAX_CHART = 60;
+const UPDATE_CHECK_STALE_MS = 5 * 60 * 1000;
+const UPDATE_RESTART_TIMEOUT_MS = 45000;
+const UPDATE_RESTART_INTERVAL_MS = 1500;
+
+// ═══════════════════════════════════════════════════════
+// TABS / NAV
+// ═══════════════════════════════════════════════════════
+function switchTab(idx) {
+  document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.nav-item').forEach((n, i) => n.classList.toggle('active', i === idx));
+  currentPage = idx;
+  if (idx === 0) drawChart();
+  if (idx === 4) maybeAutoCheckUpdate();
+}
+
+// ═══════════════════════════════════════════════════════
+// WEBSOCKET
+// ═══════════════════════════════════════════════════════
+function connect() {
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    setWsDot(true);
+    addLog('✅ Conectado ao servidor', 'info');
+    document.getElementById('headerStatus').textContent = 'Online';
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'UPDATE' || msg.type === 'INIT') {
+        latestData = msg.data;
+        updateUI(msg.data);
+      } else if (msg.type === 'BINANCE_CONNECTED') {
+        addLog('✅ Binance conectada', 'trade');
+      } else if (msg.type === 'BINANCE_ERROR') {
+        addLog(`❌ Binance: ${msg.error || 'falha na conexão'}`, 'loss');
+      } else if ((msg.type === 'START_RESULT' || msg.type === 'MODE_RESULT' || msg.type === 'STOP_RESULT') && msg.ok === false) {
+        addLog(`❌ ${msg.error || 'Falha ao processar comando'}`, 'loss');
+        toast(`❌ ${msg.error || 'Falha ao processar comando'}`, 3200);
+      }
+    } catch {}
+  };
+
+  ws.onclose = () => {
+    setWsDot(false);
+    document.getElementById('headerStatus').textContent = 'Reconectando...';
+    addLog('⚠️ Desconectado — tentando novamente...', 'warn');
+    setTimeout(connect, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+function setWsDot(on) {
+  const dot = document.getElementById('wsDot');
+  dot.classList.toggle('online', on);
+  document.getElementById('app-ws').textContent = on ? '✅ Conectado' : '❌ Desconectado';
+  document.getElementById('app-ws').className = 'status-val ' + (on ? 'green' : 'red');
+}
+
+// ═══════════════════════════════════════════════════════
+// UI UPDATE
+// ═══════════════════════════════════════════════════════
+function fmt(n) { return Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 }); }
+function fmtC(n) { return 'R$ ' + fmt(n); }
+function fmtAsset(n, asset) { return fmt(n) + ' ' + (asset || 'BRL'); }
+function fmtSignedC(n) {
+  const value = Number(n || 0);
+  const sign = value > 0 ? '+' : (value < 0 ? '-' : '');
+  return sign + 'R$ ' + fmt(Math.abs(value));
+}
+function fmtPct(n) {
+  const value = Number(n);
+  if (!Number.isFinite(value)) return '–';
+  const sign = value > 0 ? '+' : '';
+  return sign + value.toFixed(2) + '%';
+}
+function fmtQty(n) {
+  return Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 8 }) + ' BTC';
+}
+function toneClass(value) {
+  if (value > 0) return 'positive';
+  if (value < 0) return 'negative';
+  return 'neutral';
+}
+function fmtClock(isoDate) {
+  if (!isoDate) return 'agora';
+  const parsed = new Date(isoDate);
+  if (Number.isNaN(parsed.getTime())) return 'agora';
+  return parsed.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+function clampPct(value) {
+  return Math.max(0, Math.min(100, Number(value) || 0));
+}
+
+function updatePositionRange(metrics) {
+  const currentMarker = document.getElementById('m-positionCurrentMarker');
+  const entryMarker = document.getElementById('m-positionEntryMarker');
+  const stopPctEl = document.getElementById('m-positionStopPct');
+  const takePctEl = document.getElementById('m-positionTakePct');
+  const captionEl = document.getElementById('m-positionRangeCaption');
+  const stop = Number(metrics.stopPrice || 0);
+  const take = Number(metrics.takeProfitPrice || 0);
+  const entry = Number(metrics.entryPrice || 0);
+  const current = Number(metrics.currentPrice || 0);
+  const range = take - stop;
+
+  if (range <= 0) {
+    currentMarker.style.left = '50%';
+    entryMarker.style.left = '50%';
+    stopPctEl.textContent = 'Stop';
+    captionEl.textContent = 'Faixa indisponível';
+    takePctEl.textContent = 'Alvo';
+    return;
+  }
+
+  currentMarker.style.left = clampPct(((current - stop) / range) * 100) + '%';
+  entryMarker.style.left = clampPct(((entry - stop) / range) * 100) + '%';
+  stopPctEl.textContent = `Stop ${fmtPct(-Math.abs(metrics.stopDistancePct || 0))}`;
+  captionEl.textContent = `Atual ${fmtPct(metrics.unrealizedPnlPct || 0)}`;
+  takePctEl.textContent = `Alvo ${fmtPct(metrics.takeProfitDistancePct || 0)}`;
+}
+
+function updatePositionCard(data) {
+  const empty = document.getElementById('m-positionEmpty');
+  const wrap = document.getElementById('m-positionWrap');
+  const metrics = data.positionMetrics;
+
+  if (!data.position || !metrics) {
+    empty.style.display = 'block';
+    wrap.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  wrap.style.display = 'block';
+
+  const pnlTone = toneClass(metrics.unrealizedPnl);
+  const sourceLabel = metrics.source === 'adopted' ? 'posição adotada' : 'posição do bot';
+
+  document.getElementById('m-positionPnl').textContent = fmtSignedC(metrics.unrealizedPnl);
+  document.getElementById('m-positionPnl').className = 'position-pnl ' + pnlTone;
+  document.getElementById('m-positionPct').textContent = fmtPct(metrics.unrealizedPnlPct);
+  document.getElementById('m-positionPct').className = 'position-direction ' + pnlTone;
+  document.getElementById('m-positionMeta').textContent = `${sourceLabel} · aberta às ${fmtClock(metrics.openedAt)}`;
+
+  document.getElementById('m-positionEntry').textContent = fmtC(metrics.entryPrice);
+  document.getElementById('m-positionCurrent').textContent = fmtC(metrics.currentPrice);
+  document.getElementById('m-positionCurrent').className = 'position-metric-value ' + pnlTone;
+  document.getElementById('m-positionValue').textContent = fmtC(metrics.marketValue);
+  document.getElementById('m-positionValue').className = 'position-metric-value ' + pnlTone;
+  document.getElementById('m-positionQty').textContent = fmtQty(metrics.quantity);
+  document.getElementById('m-positionStop').textContent = fmtC(metrics.stopPrice);
+  document.getElementById('m-positionTake').textContent = fmtC(metrics.takeProfitPrice);
+  document.getElementById('m-positionNote').textContent = `Investido: ${fmtC(metrics.investedValue)} · stop ${fmtPct(-Math.abs(metrics.stopDistancePct || 0))} · alvo ${fmtPct(metrics.takeProfitDistancePct || 0)}`;
+  updatePositionRange(metrics);
+}
+
+function updateUI(data) {
+  // Saldo
+  const bal = data.balance || 0;
+  const balEl = document.getElementById('m-balance');
+  balEl.textContent = fmtC(bal);
+  balEl.className = 'big-stat' + (bal >= 10000 ? '' : ' danger');
+
+  // Stats
+  document.getElementById('m-profit').textContent = fmtC(data.totalProfit || 0);
+  document.getElementById('m-btc').textContent = data.currentPrice ? fmtC(data.currentPrice) : '–';
+  document.getElementById('m-wins').textContent = data.wins || 0;
+  document.getElementById('m-losses').textContent = data.losses || 0;
+
+  const total = (data.wins || 0) + (data.losses || 0);
+  const wr = total > 0 ? Math.round((data.wins / total) * 100) : 0;
+  document.getElementById('m-winRate').textContent = wr + '%';
+  document.getElementById('m-trades').textContent = total;
+  const statusText = data.status || (data.running ? '🟢 Rodando' : '🔴 Parado');
+  const hasErrorStatus = /bloqueado|erro/i.test(statusText || '') || !!data.binanceLastError;
+  document.getElementById('m-iaStatus').textContent = statusText;
+  document.getElementById('m-iaStatus').className = 'status-val ' + (hasErrorStatus ? 'red' : (data.running ? 'green' : 'red'));
+  document.getElementById('m-modo').textContent = data.mode === 'real' ? '💰 Real' : '🧪 Simulação';
+
+  // Uptime
+  const secs = data.uptime || 0;
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  document.getElementById('m-uptime').textContent = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+
+  // Binance
+  const bin = document.getElementById('m-binanceDot');
+  bin.classList.toggle('online', data.binanceConnected);
+  document.getElementById('m-binanceStatus').textContent = data.binanceConnected
+    ? '✅ Conectada' : (data.binanceStatus || '⏳ Reconectando...');
+  const quoteAsset = data.realBalanceAsset || 'BRL';
+  document.getElementById('m-binanceSub').textContent = data.binanceConnected
+    ? ('Saldo: ' + fmtAsset(data.realBalance, quoteAsset))
+    : (data.binanceLastError || 'Auto-reconexão a cada 30s');
+
+  updatePositionCard(data);
+
+  // Memória
+  const mem = data.memory || {};
+  document.getElementById('m-patterns').textContent = Object.keys(mem.patterns || {}).length;
+  document.getElementById('m-accuracy').textContent = Math.round((mem.accuracy || 0.5) * 100) + '%';
+  document.getElementById('m-phase').textContent = mem.phase || 'inicializando';
+  document.getElementById('m-decisions').textContent = mem.totalTrades || 0;
+
+  // Chart
+  performanceData.push(bal);
+  if (performanceData.length > MAX_CHART) performanceData.shift();
+  if (currentPage === 0) drawChart();
+
+  // Trades page
+  if (data.trades && data.trades.length > 0) {
+    const trades = data.trades;
+    const last = trades[trades.length - 1];
+    const avg = trades.reduce((a, b) => a + b.pnl, 0) / trades.length;
+    let mxW = 0, mxL = 0;
+    trades.forEach(t => { if (t.pnl > mxW) mxW = t.pnl; if (t.pnl < mxL) mxL = t.pnl; });
+
+    document.getElementById('m-avgProfit').textContent = fmtC(avg);
+    document.getElementById('m-lastTrade').textContent = last.side === 'BUY' ? '🟢 BUY' : '🔴 SELL';
+    document.getElementById('m-maxWin').textContent = fmtC(mxW);
+    document.getElementById('m-maxLoss').textContent = fmtC(mxL);
+
+    // Render last 20 trades
+    const list = [...trades].reverse().slice(0, 20);
+    document.getElementById('m-tradesList').innerHTML = list.map(t => `
+      <div class="trade-item">
+        <div>
+          <div class="trade-side ${t.side === 'BUY' ? 'buy' : 'sell'}">${t.side === 'BUY' ? '🟢' : '🔴'} ${t.side}</div>
+          <div class="trade-info">@ ${fmtC(t.price)} · ${t.won ? '✓ Ganhou' : '✗ Perdeu'}</div>
+        </div>
+        <div class="trade-pnl ${t.pnl >= 0 ? 'pos' : 'neg'}">${fmtC(t.pnl)}</div>
+      </div>`).join('');
+
+    // Add log for new trade
+    const tradeKey = [last.side, last.price, last.pnl, last.timestamp || trades.length].join('|');
+    if (tradeKey !== lastTradeLogKey) {
+      const emoji = last.won ? '✓' : '✗';
+      addLog(`${emoji} ${last.side} @ ${fmtC(last.price)} PnL: ${fmtC(last.pnl)}`, last.won ? 'win' : 'loss');
+      lastTradeLogKey = tradeKey;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// MINI CHART
+// ═══════════════════════════════════════════════════════
+function drawChart() {
+  const canvas = document.getElementById('miniChart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth;
+  const H = 120;
+  canvas.width = W;
+  canvas.height = H;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (performanceData.length < 2) {
+    ctx.fillStyle = '#1a1f40';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#4c5380';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aguardando dados...', W / 2, H / 2);
+    return;
+  }
+
+  const min = Math.min(...performanceData);
+  const max = Math.max(...performanceData);
+  const range = max - min || 1;
+  const pad = 10;
+
+  // Background
+  ctx.fillStyle = '#0d1126';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = '#1a1f40';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const y = pad + (H - pad * 2) * (i / 3);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, 'rgba(0,255,136,.35)');
+  grad.addColorStop(1, 'rgba(0,255,136,.02)');
+
+  // Line
+  ctx.beginPath();
+  performanceData.forEach((v, i) => {
+    const x = (i / (performanceData.length - 1)) * W;
+    const y = H - pad - ((v - min) / range) * (H - pad * 2);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+
+  // Fill
+  const lastX = W;
+  const lastY = H - pad - ((performanceData[performanceData.length - 1] - min) / range) * (H - pad * 2);
+  ctx.lineTo(lastX, H); ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Redrawn line on top
+  ctx.beginPath();
+  performanceData.forEach((v, i) => {
+    const x = (i / (performanceData.length - 1)) * W;
+    const y = H - pad - ((v - min) / range) * (H - pad * 2);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Last point dot
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#00ff88';
+  ctx.fill();
+}
+
+// ═══════════════════════════════════════════════════════
+// IA CONTROLS
+// ═══════════════════════════════════════════════════════
+function send(cmd) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(cmd));
+  } else {
+    toast('⚠️ WebSocket desconectado');
+  }
+}
+
+async function refreshStatus() {
+  try {
+    const response = await secureFetch(`${SERVER}/api/status`, { cache: 'no-store' });
+    if (!response.ok) return;
+    const data = await response.json();
+    latestData = data;
+    updateUI(data);
+  } catch {}
+}
+
+async function sendControlRequest(path, body) {
+  const response = await secureFetch(`${SERVER}${path}`, {
+    method: 'POST',
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  const raw = await response.text();
+  let payload = {};
+  try {
+    payload = raw ? JSON.parse(raw) : {};
+  } catch {
+    payload = {};
+  }
+
+  if (!response.ok || payload.ok === false) {
+    throw new Error(payload.error || `Falha HTTP ${response.status}`);
+  }
+
+  return payload;
+}
+
+async function startIA() {
+  addLog('▶ Iniciando IA...', 'info');
+  try {
+    const result = await sendControlRequest('/api/start');
+    addLog(result.message || 'IA iniciada', 'trade');
+    toast(result.message || '▶ IA iniciada');
+    await refreshStatus();
+  } catch (error) {
+    addLog(`❌ ${error.message}`, 'loss');
+    toast(`❌ ${error.message}`, 3200);
+    if ((error.message || '').toLowerCase().includes('posicao real ja aberta')) {
+      toast('🧷 Use "Adotar Posição Aberta" para a IA assumir essa posição existente.', 4200);
+    }
+  }
+}
+
+async function adoptPosition() {
+  addLog('🧷 Tentando adotar posição real existente...', 'info');
+  try {
+    const result = await sendControlRequest('/api/real/adopt-position');
+    addLog(`✅ ${result.message || 'Posição adotada com sucesso'}`, 'trade');
+    toast('✅ Posição adotada. Agora pode iniciar a IA em modo real.');
+    await refreshStatus();
+  } catch (error) {
+    addLog(`❌ ${error.message}`, 'loss');
+    toast(`❌ ${error.message}`, 3600);
+  }
+}
+
+async function stopIA() {
+  addLog('⏹ Parando IA...', 'info');
+  try {
+    const result = await sendControlRequest('/api/stop');
+    addLog(result.message || 'IA parada', 'trade');
+    toast(result.message || '⏹ IA parada');
+    await refreshStatus();
+  } catch (error) {
+    addLog(`❌ ${error.message}`, 'loss');
+    toast(`❌ ${error.message}`, 3200);
+  }
+}
+
+async function setMode(mode, btn) {
+  try {
+    await sendControlRequest('/api/mode', { mode });
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    addLog(`🔧 Modo: ${mode}`, 'info');
+    toast(`Modo: ${mode === 'real' ? '💰 Real' : '🧪 Simulação'}`);
+    await refreshStatus();
+  } catch (error) {
+    addLog(`❌ ${error.message}`, 'loss');
+    toast(`❌ ${error.message}`, 3200);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// LOGS
+// ═══════════════════════════════════════════════════════
+function addLog(msg, type = 'info') {
+  const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  logs.unshift({ msg, type, time });
+  if (logs.length > 100) logs.pop();
+  renderLogs();
+}
+
+function renderLogs() {
+  const feed = document.getElementById('m-logFeed');
+  feed.innerHTML = logs.map(log => `
+    <div class="log-item">
+      <span class="log-time">${log.time}</span>
+      <span class="log-msg log-${log.type}">${log.msg}</span>
+    </div>`).join('');
+}
+
+function clearLogs() {
+  logs = [];
+  renderLogs();
+  toast('🗑 Logs limpos');
+}
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+function toast(msg, duration = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// ═══════════════════════════════════════════════════════
+// HEALTH / VERSION
+// ═══════════════════════════════════════════════════════
+async function fetchMeta() {
+  try {
+    const r = await secureFetch(`${SERVER}/api/app-meta`, { cache: 'no-store' });
+    const d = await r.json();
+    document.getElementById('appVersion').textContent = d.version || '–';
+    document.getElementById('app-ver').textContent = d.version || '–';
+    document.getElementById('app-env').textContent = d.environmentLabel || d.environment || '–';
+    document.getElementById('app-server').textContent = '✅ Online';
+    document.getElementById('app-server').className = 'status-val green';
+    document.getElementById('updateScope').textContent = d.updateTarget || 'Servidor remoto';
+
+    const dt = d.updatedAt ? new Date(d.updatedAt).toLocaleString('pt-BR') : '–';
+    document.getElementById('appUpdatedAt').textContent = dt;
+    return d;
+  } catch {
+    document.getElementById('app-server').textContent = '❌ Offline';
+    document.getElementById('app-server').className = 'status-val red';
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// UPDATE SYSTEM
+// ═══════════════════════════════════════════════════════
+function setUpdateStatus(emoji, text) {
+  document.getElementById('updateStatusIcon').textContent = emoji;
+  document.getElementById('updateStatusText').textContent = text;
+}
+
+function appendUpdateLog(line) {
+  const el = document.getElementById('updateLog');
+  el.style.display = 'block';
+  el.textContent += line + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearUpdateLog() {
+  const el = document.getElementById('updateLog');
+  el.textContent = '';
+  el.style.display = 'none';
+}
+
+function setProgress(pct) {
+  const prog = document.getElementById('updateProgress');
+  const bar = document.getElementById('updateProgressBar');
+  prog.style.display = pct > 0 ? 'block' : 'none';
+  bar.style.width = pct + '%';
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function setUpdateLastChecked(value) {
+  const when = value ? new Date(value) : new Date();
+  lastUpdateCheckAt = when.getTime();
+  document.getElementById('updateLastChecked').textContent = Number.isNaN(when.getTime())
+    ? 'Agora'
+    : when.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function renderUpdateChanges(lines, hasUpdate) {
+  const wrap = document.getElementById('updateChanges');
+  const list = document.getElementById('updateChangesList');
+  const normalized = Array.isArray(lines)
+    ? lines.map(line => String(line || '').trim()).filter(Boolean)
+    : [];
+
+  if (!normalized.length) {
+    wrap.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  list.innerHTML = normalized
+    .map(line => `<div>${hasUpdate ? '• ' : ''}${escapeHtml(line)}</div>`)
+    .join('');
+}
+
+function setUpdateButtonsState(disabled) {
+  document.getElementById('checkUpdateBtn').disabled = disabled;
+  document.getElementById('forceUpdateBtn').disabled = disabled;
+  const installButton = document.getElementById('doUpdateBtn');
+  if (installButton.style.display !== 'none') {
+    installButton.disabled = disabled;
+  }
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function reloadWithVersion(versionTag) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('rv', versionTag || String(Date.now()));
+  window.location.replace(url.toString());
+}
+
+async function waitForServerToRecover(expectedVersion) {
+  appendUpdateLog('> Aguardando o servidor finalizar o reinício...');
+  const startedAt = Date.now();
+  let sawOffline = false;
+
+  while (Date.now() - startedAt < UPDATE_RESTART_TIMEOUT_MS) {
+    const meta = await fetchMeta();
+
+    if (meta) {
+      if (sawOffline || Date.now() - startedAt > 3000) {
+        appendUpdateLog(`> Servidor online: ${meta.version || 'versão não informada'}`);
+        if (expectedVersion && meta.version && expectedVersion !== meta.version) {
+          appendUpdateLog(`> Revisão aplicada: ${meta.version}`);
+        }
+        return meta;
+      }
+    } else {
+      sawOffline = true;
+    }
+
+    await delay(UPDATE_RESTART_INTERVAL_MS);
+  }
+
+  throw new Error('Servidor não voltou a responder dentro do tempo esperado');
+}
+
+function maybeAutoCheckUpdate(force = false) {
+  const isStale = !lastUpdateCheckAt || (Date.now() - lastUpdateCheckAt) > UPDATE_CHECK_STALE_MS;
+  if (updateInFlight || (!force && !isStale)) {
+    return;
+  }
+
+  checkUpdate({ auto: true, silent: true });
+}
+
+async function checkUpdate(options = {}) {
+  const { auto = false, silent = false } = options;
+  if (updateInFlight) {
+    return;
+  }
+
+  setUpdateButtonsState(true);
+  if (!auto) {
+    clearUpdateLog();
+  }
+
+  setUpdateStatus('🔍', auto ? 'Verificando atualização automaticamente...' : 'Verificando versão no servidor...');
+  setProgress(20);
+  if (!auto) {
+    appendUpdateLog('> Consultando servidor...');
+  }
+
+  try {
+    const r = await secureFetch(`${SERVER}/api/update/check`, { cache: 'no-store' });
+    if (!r.ok) {
+      const raw = await r.text();
+      const unsupported = r.status === 404 || /Cannot GET \/api\/update\/check/i.test(raw || '');
+      if (unsupported) {
+        setUpdateStatus('⚠️', 'Servidor atual não suporta atualização remota');
+        if (!auto) {
+          appendUpdateLog('> Endpoint /api/update/check indisponível neste servidor.');
+          appendUpdateLog('> Atualize o backend para habilitar esse recurso.');
+        }
+        if (!silent) {
+          toast('⚠️ Atualização remota indisponível neste servidor', 3500);
+        }
+      } else {
+        setUpdateStatus('❌', `Falha ao verificar atualização (HTTP ${r.status})`);
+        if (!auto) {
+          appendUpdateLog(`> ERRO HTTP ${r.status}: ${raw.slice(0, 160)}`);
+        }
+      }
+      setProgress(0);
+      setUpdateButtonsState(false);
+      return;
+    }
+
+    const d = await r.json();
+    setProgress(100);
+
+    if (d.ok) {
+      latestVersion = d;
+      updateAvailable = !!d.hasUpdate;
+      setUpdateLastChecked(d.checkedAt || new Date().toISOString());
+      document.getElementById('updateScope').textContent = d.updateTarget || 'Servidor remoto';
+      renderUpdateChanges(d.changeLines, updateAvailable);
+      document.getElementById('doUpdateBtn').style.display = updateAvailable ? 'flex' : 'none';
+
+      if (!auto || updateAvailable) {
+        appendUpdateLog(`> Versão atual:  ${d.current}`);
+        appendUpdateLog(`> Versão remota: ${d.latest}`);
+        appendUpdateLog(`> Commit local:  ${d.commit || 'N/A'}`);
+      }
+
+      if (updateAvailable) {
+        setUpdateStatus('🆕', `Nova versão disponível: ${d.latest}`);
+        appendUpdateLog('> Há mudanças prontas para instalar neste servidor.');
+        if (!silent) {
+          toast(`🆕 Atualização disponível: ${d.latest}`, 4000);
+        }
+        addLog(`🆕 Nova versão: ${d.latest}`, 'warn');
+      } else {
+        setUpdateStatus('✅', 'App já está na versão mais recente!');
+        if (!auto) {
+          appendUpdateLog('> Nenhuma atualização necessária.');
+        }
+        if (!silent && !auto) {
+          toast('✅ App atualizado!');
+        }
+      }
+    } else {
+      setUpdateStatus('⚠️', 'Não foi possível verificar: ' + (d.error || 'erro'));
+      if (!auto) {
+        appendUpdateLog('> ERRO: ' + (d.error || 'desconhecido'));
+      }
+    }
+  } catch (err) {
+    setUpdateStatus('❌', 'Erro de conexão ao verificar');
+    if (!auto) {
+      appendUpdateLog('> ERRO de rede: ' + err.message);
+    }
+  }
+
+  setTimeout(() => setProgress(0), 800);
+  setUpdateButtonsState(false);
+}
+
+async function doUpdate() {
+  if (!confirm('Instalar atualização? O servidor vai reiniciar brevemente.')) return;
+  triggerUpdate(false);
+}
+
+async function forceUpdate() {
+  if (!confirm('Forçar git pull + reinício do servidor?')) return;
+  triggerUpdate(true);
+}
+
+async function triggerUpdate(force = false) {
+  if (updateInFlight) {
+    return;
+  }
+
+  updateInFlight = true;
+  pendingUpdate = {
+    startedAt: Date.now(),
+    expectedVersion: latestVersion?.latest || ''
+  };
+  setUpdateButtonsState(true);
+  document.getElementById('updateLog').style.display = 'block';
+
+  setUpdateStatus('⬇️', 'Baixando atualização...');
+  setProgress(10);
+  appendUpdateLog('> Iniciando atualização...');
+
+  try {
+    const r = await secureFetch(`${SERVER}/api/update/apply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force })
+    });
+    if (!r.ok) {
+      const raw = await r.text();
+      const unsupported = r.status === 404 || /Cannot POST \/api\/update\/apply/i.test(raw || '');
+      if (unsupported) {
+        setUpdateStatus('⚠️', 'Servidor atual não suporta atualização remota');
+        appendUpdateLog('> Endpoint /api/update/apply indisponível neste servidor.');
+        appendUpdateLog('> Faça deploy da versão do backend com API de update.');
+        toast('⚠️ Atualização remota indisponível no backend atual', 3500);
+      } else {
+        setUpdateStatus('❌', `Falha ao aplicar atualização (HTTP ${r.status})`);
+        appendUpdateLog(`> ERRO HTTP ${r.status}: ${raw.slice(0, 160)}`);
+      }
+      setProgress(0);
+      updateInFlight = false;
+      pendingUpdate = null;
+      setUpdateButtonsState(false);
+      return;
+    }
+
+    const d = await r.json();
+
+    if (d.ok) {
+      setProgress(45);
+      appendUpdateLog('> ' + (d.output || 'Atualizado com sucesso'));
+      setUpdateStatus('🔁', 'Atualização aplicada. Aguardando o servidor voltar...');
+      const meta = await waitForServerToRecover(pendingUpdate?.expectedVersion);
+      await refreshStatus();
+      updateAvailable = false;
+      latestVersion = null;
+      document.getElementById('doUpdateBtn').style.display = 'none';
+      setProgress(90);
+      setUpdateStatus('✅', 'Atualização concluída! Carregando a nova interface...');
+      setProgress(100);
+      addLog('✅ App atualizado com sucesso!', 'win');
+      toast('✅ Atualizado! Recarregando...', 3000);
+      appendUpdateLog('> Interface sincronizada com a nova versão.');
+
+      setTimeout(() => {
+        setProgress(0);
+        reloadWithVersion(meta?.version || String(Date.now()));
+      }, 1200);
+    } else {
+      setUpdateStatus('❌', 'Falha: ' + (d.error || 'erro desconhecido'));
+      appendUpdateLog('> ERRO: ' + (d.error || ''));
+      setProgress(0);
+      addLog('❌ Falha na atualização', 'loss');
+    }
+  } catch (err) {
+    setUpdateStatus('❌', 'Erro de rede durante atualização');
+    appendUpdateLog('> ERRO: ' + err.message);
+    setProgress(0);
+  }
+
+  updateInFlight = false;
+  pendingUpdate = null;
+  setUpdateButtonsState(false);
+}
+
+// ═══════════════════════════════════════════════════════
+// MISC
+// ═══════════════════════════════════════════════════════
+function openDesktop() {
+  const url = withAppKey(SERVER + '/dashboard');
+  if (typeof window.openExternalUrl === 'function') {
+    window.openExternalUrl(url);
+    return;
+  }
+
+  window.open(url, '_blank');
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+function init() {
+  connect();
+  fetchMeta();
+  setInterval(fetchMeta, 60000);
+  drawChart();
+  addLog('📱 App mobile carregado', 'info');
+}
+
+window.addEventListener('load', init);
+window.addEventListener('resize', () => { if (currentPage === 0) drawChart(); });
+</script>
+
+</body>
+</html>

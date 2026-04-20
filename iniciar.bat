@@ -42,6 +42,9 @@ if not exist ".env" (
     echo.
 )
 
+echo ℹ️  BINANCE_BASE_URL pode ser definido no ambiente/.env
+echo    Exemplo: https://api.binance.com/api/v3
+
 REM Verificar se node_modules existe
 if not exist "node_modules" (
     echo.

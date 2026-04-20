@@ -1,57 +1,71 @@
 {
-  "name": "ia-trader",
-  "version": "1.0.0",
-  "description": "🤖 IA Trader Bitcoin - Trading Bot autônomo com Dashboard em tempo real",
-  "main": "desktop/main.js",
-  "scripts": {
-    "start": "node server.js",
-    "desktop:start": "electron desktop/main.js",
-    "desktop:dist": "electron-builder --win nsis",
-    "desktop:dir": "electron-builder --dir",
-      "desktop:pack": "electron-packager . IA-Trader-Privado --platform=win32 --arch=x64 --out=dist_build --overwrite --prune=true --electron-version=31.7.7 --ignore=\\\"^/(dist|dist_build|.git)\\\""
-  },
-  "keywords": [
-    "trading",
-    "bot",
-    "ia",
-    "bitcoin",
-    "binance",
-    "desktop",
-    "electron"
-  ],
-  "author": "Seu Nome",
-  "license": "MIT",
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.3",
-    "axios": "^1.4.0",
-    "ws": "^8.13.0"
-  },
-  "devDependencies": {
-    "nodemon": "^2.0.22",
-    "electron": "^31.7.7",
-    "electron-builder": "^24.13.3",
-    "electron-packager": "^17.1.2"
-  },
-  "build": {
-    "appId": "com.iatrader.desktop",
-    "productName": "IA Trader Privado",
-    "files": [
-      "desktop/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "artifactName": "IA-Trader-Privado-Setup-${version}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
-    }
-  }
+    "name":  "ia-trader",
+    "version":  "1.0.1",
+    "description":  "Privado - painel BTC com IA, monitoramento em tempo real e memoria adaptativa",
+    "main":  "desktop/main.js",
+    "scripts":  {
+                    "start":  "node server.js",
+                    "desktop:start":  "electron desktop/main.js",
+                    "desktop:dist":  "electron-builder --win nsis",
+                    "desktop:dir":  "electron-builder --dir",
+                    "desktop:pack":  "electron-packager . Privado --platform=win32 --arch=x64 --out=dist_build --overwrite --prune=true --electron-version=31.7.7 --icon=desktop/assets/app-icon.ico --ignore=\\\"^/(dist|dist_build|.git)\\\"",
+                    "prepare:mobile":  "node scripts/prepare-capacitor.mjs",
+                    "cap:add:android":  "npm run prepare:mobile \u0026\u0026 npx cap add android",
+                    "cap:sync":  "npm run prepare:mobile \u0026\u0026 npx cap sync android",
+                    "cap:open:android":  "npx cap open android",
+                    "cap:build":  "npm run prepare:mobile \u0026\u0026 npx cap sync android \u0026\u0026 npx cap open android",
+                    "deploy:vps":  "node scripts/update-vps-advanced.js"
+                },
+    "keywords":  [
+                     "trading",
+                     "bot",
+                     "ia",
+                     "bitcoin",
+                     "binance",
+                     "desktop",
+                     "electron"
+                 ],
+    "author":  "Seu Nome",
+    "license":  "MIT",
+    "dependencies":  {
+                         "@capacitor/android":  "8.3.0",
+                         "@capacitor/app":  "8.1.0",
+                         "@capacitor/browser":  "8.0.3",
+                         "@capacitor/cli":  "7.6.1",
+                         "@capacitor/core":  "8.3.0",
+                         "axios":  "^1.4.0",
+                         "cors":  "^2.8.5",
+                         "dotenv":  "^16.0.3",
+                         "electron-updater":  "^6.8.3",
+                         "express":  "^4.18.2",
+                         "ssh2":  "^1.17.0",
+                         "ws":  "^8.13.0"
+                     },
+    "devDependencies":  {
+                            "electron":  "^31.7.7",
+                            "electron-builder":  "^24.13.3",
+                            "electron-packager":  "^17.1.2",
+                            "nodemon":  "^2.0.22"
+                        },
+    "build":  {
+                  "appId":  "com.iatrader.desktop",
+                  "productName":  "IA Trader Privado",
+                  "files":  [
+                                "desktop/**/*",
+                                "package.json"
+                            ],
+                  "win":  {
+                              "target":  [
+                                             "nsis"
+                                         ],
+                              "icon":  "desktop/assets/app-icon.ico",
+                              "artifactName":  "IA-Trader-Privado-Setup-${version}.${ext}"
+                          },
+                  "nsis":  {
+                               "oneClick":  false,
+                               "allowToChangeInstallationDirectory":  true,
+                               "createDesktopShortcut":  true,
+                               "createStartMenuShortcut":  true
+                           }
+              }
 }
