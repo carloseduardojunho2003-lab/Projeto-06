@@ -1,6 +1,7 @@
 {
     "name":  "ia-trader",
     "version":  "1.0.1",
+        "version":  "1.0.2",
     "description":  "Privado - painel BTC com IA, monitoramento em tempo real e memoria adaptativa",
     "main":  "desktop/main.js",
     "scripts":  {
@@ -9,6 +10,7 @@
                     "desktop:dist":  "electron-builder --win nsis",
                     "desktop:dir":  "electron-builder --dir",
                     "desktop:pack":  "electron-packager . Privado --platform=win32 --arch=x64 --out=dist_build --overwrite --prune=true --electron-version=31.7.7 --icon=desktop/assets/app-icon.ico --ignore=\\\"^/(dist|dist_build|.git)\\\"",
+                        "brand:assets":  "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& { & '.\\scripts\\generate-brand-assets.ps1' }\"",
                     "prepare:mobile":  "node scripts/prepare-capacitor.mjs",
                     "cap:add:android":  "npm run prepare:mobile \u0026\u0026 npx cap add android",
                     "cap:sync":  "npm run prepare:mobile \u0026\u0026 npx cap sync android",

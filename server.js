@@ -6,7 +6,9 @@ const express = require('express');
 const cors = require('cors');
 const WebSocket = require('ws');
 const axios = require('axios');
+const fs = require('fs');
 const http = require('http');
+const path = require('path');
 const crypto = require('crypto');
 require('dotenv').config();
 
@@ -19,9 +21,13 @@ const app = express();
 const PORT = process.env.PORT || 5561;
 const PRIVATE_APP_KEY = process.env.PRIVATE_APP_KEY || 'IA_TRADER_PRIVATE_2026';
 const LOCK_BROWSER_ACCESS = process.env.LOCK_BROWSER_ACCESS !== 'false';
-const APP_REMOTE_VERSION = process.env.APP_REMOTE_VERSION || '2026.04.20.1';
+const APP_REMOTE_VERSION = process.env.APP_REMOTE_VERSION || '2026.04.20.2';
 const APP_REMOTE_UPDATED_AT = process.env.APP_REMOTE_UPDATED_AT || new Date().toISOString();
 const BINANCE_BASE_URL = process.env.BINANCE_BASE_URL || 'https://api.binance.com/api/v3';
+const RUNTIME_STATE_DIR = path.join(__dirname, '.ai-memory');
+const RUNTIME_STATE_PATH = path.join(RUNTIME_STATE_DIR, 'runtime-state.json');
+const RUNTIME_STATE_VERSION = 1;
+const SELF_UPDATE_BACKUP_DIR = path.join(path.dirname(__dirname), `${path.basename(__dirname)}-backups`);
 const DEFAULT_BINANCE_SYMBOL = 'BTCBRL';
 const BINANCE_SYMBOL = process.env.BINANCE_SYMBOL || DEFAULT_BINANCE_SYMBOL;
 const BINANCE_QUOTE_ASSET = process.env.BINANCE_QUOTE_ASSET || (BINANCE_SYMBOL.endsWith('USDT') ? 'USDT' : 'BRL');
@@ -201,6 +207,73 @@ let state = {
   cooldowns: {},
   simulationQuoteFree: CONFIG.initialBalance
 };
+
+let runtimeRecoveryAttempted = false;
+let runtimeRecoveryInProgress = false;
+let runtimeStateLastSavedAt = 0;
+let runtimeStatePersistWarningLogged = false;
+
+function ensureDirectory(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+function loadPersistedRuntimeState() {
+  try {
+    if (!fs.existsSync(RUNTIME_STATE_PATH)) {
+      return null;
+    }
+
+    const raw = fs.readFileSync(RUNTIME_STATE_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (error) {
+    console.error('⚠️ Falha ao ler runtime-state.json:', error.message);
+    return null;
+  }
+}
+
+function persistRuntimeState(force = false, reason = 'periodic') {
+  const now = Date.now();
+  if (!force && now - runtimeStateLastSavedAt < 1200) {
+    return;
+  }
+
+  try {
+    ensureDirectory(RUNTIME_STATE_DIR);
+    const positions = getTrackedMarketEntries().reduce((positionMap, [assetKey]) => {
+      const position = getPositionForAsset(assetKey);
+      if (position) {
+        positionMap[assetKey] = { ...position };
+      }
+      return positionMap;
+    }, {});
+
+    const snapshot = {
+      version: RUNTIME_STATE_VERSION,
+      savedAt: new Date(now).toISOString(),
+      reason,
+      mode: state.mode,
+      running: state.running,
+      startedAt: state.startedAt,
+      status: state.status,
+      realBalanceAsset: state.realBalanceAsset,
+      cooldowns: { ...(state.cooldowns || {}) },
+      lastSignals: { ...(state.lastSignals || {}) },
+      positions
+    };
+
+    fs.writeFileSync(RUNTIME_STATE_PATH, JSON.stringify(snapshot, null, 2), 'utf8');
+    runtimeStateLastSavedAt = now;
+    runtimeStatePersistWarningLogged = false;
+  } catch (error) {
+    if (!runtimeStatePersistWarningLogged) {
+      console.error('⚠️ Falha ao persistir runtime-state.json:', error.message);
+      runtimeStatePersistWarningLogged = true;
+    }
+  }
+}
 
 function normalizeCredentialValue(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -828,6 +901,9 @@ function connectBinanceAuto() {
     binanceReconnectAttempts = 0; // Reset contagem
     console.log(`🔌 Binance conectada com sucesso! Balance: ${snapshot.balance.toFixed(2)} ${snapshot.asset}`);
     broadcastUpdate();
+    recoverRuntimeAfterBinanceConnect().catch((error) => {
+      console.error('⚠️ Erro ao recuperar runtime após conexão Binance:', error.message);
+    });
   }).catch((error) => {
     binanceAPI = null;
     updateBinanceConnectionState({
@@ -1849,6 +1925,157 @@ async function syncOpenOrders() {
   return normalizedOrders;
 }
 
+function buildRecoveredRealPosition(assetKey, assetSnapshot, persistedPosition = null) {
+  const marketConfig = TRACKED_MARKETS[assetKey];
+  const referencePrice = Number(assetSnapshot?.currentPrice || persistedPosition?.entryPrice || 0);
+  const quoteSpent = Number(persistedPosition?.quoteSpent || assetSnapshot?.notional || 0);
+  const entryPrice = Number(persistedPosition?.entryPrice || referencePrice || 0);
+  const position = {
+    ...(persistedPosition || {}),
+    assetKey,
+    symbol: marketConfig.symbol,
+    label: marketConfig.label,
+    baseAsset: marketConfig.baseAsset,
+    mode: 'real',
+    side: 'LONG',
+    quantity: Number(assetSnapshot?.baseTotal || persistedPosition?.quantity || 0),
+    entryPrice,
+    quoteSpent,
+    highestPrice: Math.max(
+      Number(persistedPosition?.highestPrice || persistedPosition?.entryPrice || referencePrice || 0),
+      referencePrice
+    ),
+    stopPrice: Number(persistedPosition?.stopPrice || (entryPrice * (1 - CONFIG.stopLoss))),
+    takeProfitPrice: Number(persistedPosition?.takeProfitPrice || (entryPrice * (1 + CONFIG.takeProfit))),
+    openedAt: persistedPosition?.openedAt || new Date().toISOString(),
+    confidence: Number(persistedPosition?.confidence || 1),
+    source: persistedPosition ? 'restored' : 'recovered',
+    entryOrderId: persistedPosition?.entryOrderId || null,
+    clientOrderId: persistedPosition?.clientOrderId || `recovered-${assetKey}-${Date.now()}`
+  };
+
+  updateLongPositionProtection(position, referencePrice || entryPrice);
+  return position;
+}
+
+function restoreRealPositionsFromPortfolio(persistedState, portfolioSnapshot, rulesByAsset) {
+  const restoredPositions = [];
+  const persistedPositions = persistedState?.positions || {};
+
+  for (const [assetKey] of getTrackedMarketEntries()) {
+    const assetSnapshot = portfolioSnapshot.assets?.[assetKey];
+    const minimumNotional = Math.max(10, Number(rulesByAsset?.[assetKey]?.minNotional || 0));
+    const liveNotional = Number(assetSnapshot?.notional || 0);
+
+    if (!assetSnapshot || liveNotional < minimumNotional) {
+      if (getPositionForAsset(assetKey)) {
+        setPositionForAsset(assetKey, null, assetKey);
+      }
+      continue;
+    }
+
+    const restoredPosition = buildRecoveredRealPosition(assetKey, assetSnapshot, persistedPositions[assetKey] || null);
+    setPositionForAsset(assetKey, restoredPosition, assetKey);
+    restoredPositions.push(restoredPosition);
+  }
+
+  syncLegacyRuntimeState(restoredPositions[0]?.assetKey || PRIMARY_MARKET_KEY);
+  return restoredPositions;
+}
+
+async function resumeRecoveredRealRuntime(persistedState) {
+  if (state.running || state.mode !== 'real' || !getOpenPositions().length) {
+    return { ok: true, resumed: false };
+  }
+
+  state.running = true;
+  state.startedAt = persistedState?.startedAt || new Date().toISOString();
+  state.status = '♻️ Proteção real restaurada após reinício';
+  state.binanceLastError = '';
+
+  try {
+    await runIATick();
+  } catch (error) {
+    state.running = false;
+    state.startedAt = null;
+    state.uptime = 0;
+    const message = handleRuntimeFailure(error);
+    return { ok: false, error: message };
+  }
+
+  ensureIAInterval();
+  return { ok: true, resumed: true };
+}
+
+async function recoverRuntimeAfterBinanceConnect() {
+  if (runtimeRecoveryAttempted || runtimeRecoveryInProgress) {
+    return;
+  }
+
+  if (state.mode !== 'real' || !binanceAPI || !state.binanceConnected) {
+    runtimeRecoveryAttempted = true;
+    return;
+  }
+
+  runtimeRecoveryInProgress = true;
+
+  try {
+    const persistedState = loadPersistedRuntimeState();
+    const marketSnapshots = await fetchTrackedMarketSnapshots();
+    Object.entries(marketSnapshots).forEach(([assetKey, marketSnapshot]) => {
+      setRuntimeMarketForAsset(assetKey, marketSnapshot);
+    });
+
+    const account = await binanceAPI.getAccountInfo();
+    const portfolioSnapshot = buildTrackedPortfolioSnapshot(account, marketSnapshots);
+    syncRealPortfolioState(portfolioSnapshot);
+
+    const rulesByAsset = await loadTrackedSymbolRules();
+    const openOrders = await syncOpenOrders();
+    const restoredPositions = restoreRealPositionsFromPortfolio(persistedState, portfolioSnapshot, rulesByAsset);
+
+    if (!restoredPositions.length) {
+      runtimeRecoveryAttempted = true;
+      return;
+    }
+
+    if (openOrders.length > 0) {
+      state.running = false;
+      state.startedAt = null;
+      state.status = '⏸ Ordens abertas detectadas após reinício';
+      updateRuntimeMetrics();
+      broadcastUpdate();
+      runtimeRecoveryAttempted = true;
+      return;
+    }
+
+    if (persistedState?.running) {
+      const result = await resumeRecoveredRealRuntime(persistedState);
+      if (!result.ok) {
+        runtimeRecoveryAttempted = true;
+        return;
+      }
+    } else {
+      state.running = false;
+      state.startedAt = null;
+      state.status = '⏸ Posição real restaurada após reinício';
+      updateRuntimeMetrics();
+      broadcastUpdate();
+    }
+
+    console.log(`♻️ Runtime real restaurado após boot (${restoredPositions.map((position) => position.label).join(', ')})`);
+    runtimeRecoveryAttempted = true;
+  } catch (error) {
+    console.error('⚠️ Falha ao recuperar runtime real após boot:', error.message);
+    state.binanceLastError = binanceAPI ? binanceAPI.normalizeError(error) : (error.message || 'Falha ao recuperar runtime real após boot.');
+    broadcastUpdate();
+    runtimeRecoveryAttempted = true;
+  } finally {
+    runtimeRecoveryInProgress = false;
+    persistRuntimeState(true, 'recovery-sync');
+  }
+}
+
 function registerRealTrade({ market, position, exitPrice, pnl, confidence, reason, marketSnapshot }) {
   const trade = {
     id: state.trades.length + 1,
@@ -2559,6 +2786,22 @@ function handleRuntimeFailure(error) {
   return message;
 }
 
+function ensureIAInterval() {
+  if (iaInterval) {
+    return;
+  }
+
+  iaInterval = setInterval(() => {
+    if (!state.running) {
+      clearInterval(iaInterval);
+      iaInterval = null;
+      return;
+    }
+
+    runIATick().catch(handleRuntimeFailure);
+  }, getTickIntervalMs());
+}
+
 function setMode(mode) {
   if (!['simulation', 'real'].includes(mode)) {
     return { ok: false, error: 'Modo inválido' };
@@ -2637,15 +2880,7 @@ async function startIA() {
     return { ok: false, error: message };
   }
 
-  iaInterval = setInterval(() => {
-    if (!state.running) {
-      clearInterval(iaInterval);
-      iaInterval = null;
-      return;
-    }
-
-    runIATick().catch(handleRuntimeFailure);
-  }, getTickIntervalMs());
+  ensureIAInterval();
 
   return { ok: true };
 }
@@ -2677,6 +2912,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 function broadcastUpdate() {
+  persistRuntimeState();
   const clientState = buildClientState();
   const message = JSON.stringify({
     type: 'UPDATE',
@@ -2790,71 +3026,160 @@ app.get('/mobile', (req, res) => {
   res.sendFile(__dirname + '/mobile.html');
 });
 
-// 🔄 Verificar atualização disponível (git fetch + log)
-app.get('/api/update/check', (req, res) => {
-  const { exec } = require('child_process');
-  const currentVersion = APP_REMOTE_VERSION;
+function runSystemCommand(command, args, options = {}) {
+  const { execFile } = require('child_process');
 
-  exec('git fetch origin && git log HEAD..origin/main --oneline -5 2>&1', { cwd: __dirname, timeout: 15000 }, (err, stdout, stderr) => {
-    const output = (stdout || stderr || '').trim();
-    const lines = output.split('\n').map(line => line.trim()).filter(Boolean);
-    const isGitRepo = !output.includes('fatal') && !output.includes('not a git');
-    const hasUpdate = lines.length > 0 && isGitRepo;
-    const changeLines = isGitRepo
-      ? lines
-          .map(line => line.replace(/^[0-9a-f]{7,40}\s+/i, '').trim())
-          .filter(Boolean)
-          .slice(0, 5)
-      : [];
+  return new Promise((resolve, reject) => {
+    execFile(command, args, {
+      cwd: options.cwd || __dirname,
+      timeout: options.timeout || 30000,
+      windowsHide: true,
+      maxBuffer: 1024 * 1024
+    }, (error, stdout, stderr) => {
+      const output = `${stdout || ''}${stderr || ''}`.trim();
+      if (error) {
+        error.output = output;
+        reject(error);
+        return;
+      }
 
-    exec('git log -1 --format="%H %s" 2>&1', { cwd: __dirname, timeout: 5000 }, (e2, headOut) => {
-      exec('git log origin/main -1 --format="%H %s" 2>&1', { cwd: __dirname, timeout: 5000 }, (e3, remoteOut) => {
-        const remoteCommit = (remoteOut || '').trim().slice(0, 60);
-
-        res.json({
-          ok: true,
-          current: currentVersion,
-          latest: hasUpdate ? (remoteCommit.split(' ')[0] || 'nova versão').slice(0, 8) : currentVersion,
-          hasUpdate: isGitRepo && hasUpdate,
-          commit: (headOut || '').trim().slice(0, 8),
-          remoteCommit: (remoteOut || '').trim().slice(0, 8),
-          changes: output || 'Sem mudanças',
-          changeLines,
-          summary: hasUpdate
-            ? `${changeLines.length || 1} mudança(s) pronta(s) para instalar`
-            : 'Sem mudanças pendentes',
-          updateTarget: 'Servidor remoto',
-          checkedAt: new Date().toISOString()
-        });
+      resolve({
+        stdout: stdout || '',
+        stderr: stderr || '',
+        output
       });
     });
   });
+}
+
+function getNpmCommand() {
+  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+}
+
+function getPm2Command() {
+  return process.platform === 'win32' ? 'pm2.cmd' : 'pm2';
+}
+
+async function createSelfUpdateBackup() {
+  ensureDirectory(SELF_UPDATE_BACKUP_DIR);
+  const backupName = `preupdate-${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)}.tgz`;
+  const backupPath = path.join(SELF_UPDATE_BACKUP_DIR, backupName);
+
+  await runSystemCommand('tar', [
+    '-czf',
+    backupPath,
+    '--exclude=.git',
+    '--exclude=node_modules',
+    '--exclude=.ai-memory',
+    '--exclude=backup-*',
+    '--exclude=dist',
+    '--exclude=dist_build',
+    '.'
+  ], { timeout: 45000 });
+
+  return backupPath;
+}
+
+function schedulePm2Reload() {
+  setTimeout(() => {
+    runSystemCommand(getPm2Command(), ['reload', 'ia-trader', '--update-env'], { timeout: 45000 }).catch((error) => {
+      console.error('[UPDATE] Falha ao recarregar PM2:', error.output || error.message);
+    });
+  }, 150);
+}
+
+// 🔄 Verificar atualização disponível (git fetch + diff + dirty tree)
+app.get('/api/update/check', async (req, res) => {
+  const currentVersion = APP_REMOTE_VERSION;
+
+  try {
+    await runSystemCommand('git', ['fetch', 'origin'], { timeout: 15000 });
+    const [diffOut, headOut, remoteOut, statusOut] = await Promise.all([
+      runSystemCommand('git', ['log', 'HEAD..origin/main', '--oneline', '-5'], { timeout: 5000 }),
+      runSystemCommand('git', ['log', '-1', '--format=%H %s'], { timeout: 5000 }),
+      runSystemCommand('git', ['log', 'origin/main', '-1', '--format=%H %s'], { timeout: 5000 }),
+      runSystemCommand('git', ['status', '--porcelain'], { timeout: 5000 })
+    ]);
+
+    const lines = diffOut.output.split('\n').map((line) => line.trim()).filter(Boolean);
+    const dirtyFiles = statusOut.output.split('\n').map((line) => line.trim()).filter(Boolean);
+    const remoteCommit = remoteOut.output.trim().slice(0, 60);
+    const hasUpdate = lines.length > 0;
+    const changeLines = lines
+      .map((line) => line.replace(/^[0-9a-f]{7,40}\s+/i, '').trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+    res.json({
+      ok: true,
+      current: currentVersion,
+      latest: hasUpdate ? (remoteCommit.split(' ')[0] || 'nova versão').slice(0, 8) : currentVersion,
+      hasUpdate,
+      commit: headOut.output.trim().slice(0, 8),
+      remoteCommit: remoteOut.output.trim().slice(0, 8),
+      changes: diffOut.output || 'Sem mudanças',
+      changeLines,
+      summary: hasUpdate
+        ? `${changeLines.length || 1} mudança(s) pronta(s) para instalar`
+        : 'Sem mudanças pendentes',
+      workingTreeDirty: dirtyFiles.length > 0,
+      dirtyFiles: dirtyFiles.slice(0, 20),
+      updateTarget: 'Servidor remoto',
+      checkedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    res.json({
+      ok: false,
+      error: error.message,
+      output: error.output || '',
+      current: currentVersion,
+      checkedAt: new Date().toISOString()
+    });
+  }
 });
 
-// 🔄 Aplicar atualização (git pull + pm2 reload)
-app.post('/api/update/apply', (req, res) => {
-  const { exec } = require('child_process');
+// 🔄 Aplicar atualização (backup + reset limpo + pm2 reload)
+app.post('/api/update/apply', async (req, res) => {
   const { force } = req.body || {};
-
-  const cmd = [
-    'git pull origin main',
-    'npm install --production --silent',
-    'pm2 reload ia-trader --update-env 2>/dev/null || true'
-  ].join(' && ');
 
   aiSecurity.logSecurityEvent('SELF_UPDATE_TRIGGERED', 'mobile', { force: !!force });
 
-  exec(cmd, { cwd: __dirname, timeout: 60000 }, (err, stdout, stderr) => {
-    const output = (stdout || stderr || '').trim();
+  try {
+    persistRuntimeState(true, 'self-update');
+    const backupPath = await createSelfUpdateBackup();
+    const fetchResult = await runSystemCommand('git', ['fetch', 'origin'], { timeout: 15000 });
+    const resetResult = await runSystemCommand('git', ['reset', '--hard', 'origin/main'], { timeout: 15000 });
+    const cleanResult = await runSystemCommand('git', [
+      'clean',
+      '-fd',
+      '-e', '.env',
+      '-e', '.env.backup-*',
+      '-e', '.ai-memory',
+      '-e', 'node_modules',
+      '-e', 'backup-*'
+    ], { timeout: 15000 });
+    const installResult = await runSystemCommand(getNpmCommand(), ['install', '--production', '--silent'], { timeout: 90000 });
+    const output = [
+      fetchResult.output,
+      resetResult.output,
+      cleanResult.output,
+      installResult.output
+    ].filter(Boolean).join('\n').trim();
 
-    if (err && !output.includes('Already up to date') && !output.includes('Reloading')) {
-      console.error('[UPDATE] Erro:', err.message);
-      return res.json({ ok: false, error: err.message, output });
-    }
-
-    console.log('[UPDATE] Concluído:', output.slice(0, 200));
-    res.json({ ok: true, output: output.slice(0, 500), updatedAt: new Date().toISOString() });
-  });
+    console.log('[UPDATE] Pronto para recarregar PM2:', output.slice(0, 200));
+    res.json({
+      ok: true,
+      output: output.slice(0, 800),
+      backupPath,
+      updatedAt: new Date().toISOString(),
+      workingTreeClean: true,
+      reloadScheduled: true
+    });
+    schedulePm2Reload();
+  } catch (error) {
+    console.error('[UPDATE] Erro:', error.message);
+    res.json({ ok: false, error: error.message, output: error.output || '' });
+  }
 });
 
 app.get('/api/status', (req, res) => {
@@ -3161,12 +3486,19 @@ server.listen(PORT, () => {
   }, 1000);
 });
 
-process.on('SIGTERM', () => {
-  console.log('🛑 Recebido SIGTERM, encerrando gracefully...');
-  stopIA();
+function gracefulShutdown(signal) {
+  console.log(`🛑 Recebido ${signal}, encerrando gracefully...`);
+  persistRuntimeState(true, signal);
+  if (iaInterval) {
+    clearInterval(iaInterval);
+    iaInterval = null;
+  }
   stopBinanceHealthCheck();
   server.close(() => {
     console.log('✅ Servidor encerrado');
     process.exit(0);
   });
-});
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
